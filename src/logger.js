@@ -14,16 +14,33 @@ const logger = {
         try {
             const query = `
                 INSERT INTO bot_decisions (
-                    par, timeframe, rsi, ema20, ema50, macd, signal_macd, histogram, 
-                    volumen_vs_promedio, precio_actual, accion, confianza, razon, 
-                    stop_loss, take_profit, modo_real, fecha
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    par, precio_actual, rsi, ema20, ema50, macd, 
+                    volumen_ratio, accion, confianza, razon, 
+                    stop_loss, take_profit, ejecutado, motivo_no_ejecutado,
+                    timeframe, signal_macd, histogram, volumen_vs_promedio, 
+                    fecha, modo_real
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
             `;
             const values = [
-                process.env.PAR, process.env.TIMEFRAME, decision.rsi, decision.ema20, decision.ema50,
-                decision.macd, decision.signal_macd, decision.histogram, decision.volumenPct,
-                decision.precioActual, decision.accion, decision.confianza, decision.razon,
-                decision.stop_loss, decision.take_profit, process.env.MODO_REAL === 'true'
+                process.env.PAR,
+                decision.precioActual,
+                decision.rsi,
+                decision.ema20,
+                decision.ema50,
+                decision.macd,
+                decision.volumenPct, // Asignamos volumenPct a volumen_ratio también para rellenarlo
+                decision.accion,
+                decision.confianza,
+                decision.razon,
+                decision.stop_loss || null,
+                decision.take_profit || null,
+                decision.ejecutado ? 1 : 0,
+                decision.motivo_no_ejecutado || null,
+                process.env.TIMEFRAME,
+                decision.signal_macd,
+                decision.histogram,
+                decision.volumenPct,
+                process.env.MODO_REAL === 'true' ? 1 : 0
             ];
             await db.execute(query, values);
             logger.info(`💾 Decisión guardada en base de datos.`);
@@ -35,16 +52,23 @@ const logger = {
         try {
             const query = `
                 INSERT INTO bot_trades (
-                    par, accion, cantidad, precio_entrada, stop_loss, take_profit, 
-                    modo_real, fecha_entrada
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                    par, direccion, precio_entrada, stop_loss, take_profit, 
+                    capital_usado, apalancamiento, modo, timestamp_apertura
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
             `;
+            const modo_str = process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO';
             const values = [
-                process.env.PAR, trade.accion, trade.cantidad, trade.precio_entrada,
-                trade.stop_loss, trade.take_profit, process.env.MODO_REAL === 'true'
+                process.env.PAR,
+                trade.accion,
+                trade.precio_entrada,
+                trade.stop_loss || null,
+                trade.take_profit || null,
+                trade.cantidad || 0, // Aquí usabas "cantidad", en la db es "capital_usado"
+                process.env.APALANCAMIENTO || 1,
+                modo_str
             ];
             await db.execute(query, values);
-            logger.info(`💾 Trade guardado en base de datos.`);
+            logger.info(`💾 Trade guardado en base de datos correctamente.`);
         } catch (error) {
             logger.error('No se pudo guardar el trade en la BD', error);
         }
