@@ -15,22 +15,25 @@ async function runBot() {
         logger.info(`📊 Analizando ${par}...`);
 
         // 1. Obtener datos de mercado
-        // BingX API limit 100
-        const klines = await market.getKlines(par, timeframe, 100);
-        if (!klines || klines.length === 0) {
+        const candles15m = await market.getCandles15m(par);
+        const candles1h = await market.getCandles1h(par);
+
+        if (!candles15m || candles15m.length === 0 || !candles1h || candles1h.length === 0) {
             logger.error('No se obtuvieron klines de BingX');
             return;
         }
 
         // 2. Calcular indicadores
-        const indics = indicators.analyze(klines);
+        const indicators15m = indicators.calcularIndicadores(candles15m);
+        const indicators1h = indicators.calcularIndicadores(candles1h);
 
         // Consultar posiciones abiertas (simulación o real dependiendo del bot)
         const positions = await trader.getPositions(par);
         const isOpen = positions.length > 0;
 
         // 3. Consultar IA
-        const decision = await ai.getTradeDecision(indics, isOpen);
+        const precioActual = indicators15m.currentPrice;
+        const decision = await ai.consultarGemini(indicators15m, indicators1h, precioActual, isOpen);
         if (!decision) return;
 
         logger.info(`🤖 Gemini dice: ${decision.accion} (confianza: ${decision.confianza})`);
@@ -40,14 +43,14 @@ async function runBot() {
 
         // Armar el log decision object AHORA que tenemos la razón
         const decisionLog = {
-            rsi: indics.rsi,
-            ema20: indics.ema20,
-            ema50: indics.ema50,
-            macd: indics.macd,
-            signal_macd: indics.signal,
-            histogram: indics.histogram,
-            volumenPct: indics.volumeVsAvg,
-            precioActual: indics.currentPrice,
+            rsi: indicators15m.rsi,
+            ema20: indicators15m.ema20,
+            ema50: indicators15m.ema50,
+            macd: indicators15m.macd,
+            signal_macd: indicators15m.signal,
+            histogram: indicators15m.histogram,
+            volumenPct: indicators15m.volumeVsAvg,
+            precioActual: precioActual,
             accion: decision.accion,
             confianza: decision.confianza,
             razon: decision.razon,
@@ -62,7 +65,7 @@ async function runBot() {
 
         // 5. Ejecutar Trade si todo fue aprobado
         if (riskResult.canTrade && decision.accion !== 'HOLD') {
-            await trader.executeTrade(decision, indics.currentPrice);
+            await trader.executeTrade(decision, precioActual);
         }
 
     } catch (error) {

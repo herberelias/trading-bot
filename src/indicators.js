@@ -1,6 +1,6 @@
 const { RSI, EMA, MACD } = require('technicalindicators');
 
-function analyze(klines) {
+function calcularIndicadores(klines) {
     // klines structure from BingX usually is an array of objects
     // reverse so the oldest is first, latest is last if necessary, or check the order 
     // Usually it returns from latest to oldest in some APIs, let's assume chronological
@@ -53,4 +53,4 @@ function analyze(klines) {
     };
 }
 
-module.exports = { analyze };
+module.exports = { calcularIndicadores, analyze: calcularIndicadores };

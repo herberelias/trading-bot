@@ -6,25 +6,43 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL;
 const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
 
-async function getTradeDecision(indicators, isPositionOpen) {
-    const prompt = `Eres un trader experto en futuros perpetuos de criptomonedas.
-    Analiza estos indicadores técnicos de BTC/USDT en timeframe 15m:
-    - RSI(14): ${indicators.rsi}
-    - EMA20: ${indicators.ema20}
-    - EMA50: ${indicators.ema50}
-    - MACD: ${indicators.macd} Signal: ${indicators.signal} Histogram: ${indicators.histogram}
-    - Precio actual: ${indicators.currentPrice}
-    - Volumen actual vs promedio: ${indicators.volumeVsAvg}%
-    - Posición abierta actualmente: ${isPositionOpen ? 'SI' : 'NO'}
-    
-    Responde ÚNICAMENTE con este JSON sin texto adicional ni backticks:
-    {
-      "accion": "LONG" | "SHORT" | "HOLD" | "CLOSE",
-      "confianza": 0.00 a 1.00,
-      "razon": "explicación breve",
-      "stop_loss": precio numérico,
-      "take_profit": precio numérico
-    }`;
+async function consultarGemini(indicators15m, indicators1h, precioActual, isPositionOpen) {
+    const tendencia1h = parseFloat(indicators1h.ema20) > parseFloat(indicators1h.ema50) ? 'por encima' : 'por debajo';
+
+    const prompt = `Eres un trader experto en futuros perpetuos.
+Analiza BTC/USDT con contexto multi-timeframe:
+
+TIMEFRAME 1H (tendencia principal):
+- RSI(14): ${indicators1h.rsi}
+- EMA20: ${indicators1h.ema20}
+- EMA50: ${indicators1h.ema50}
+- MACD: ${indicators1h.macd} | Signal: ${indicators1h.signal} | Histogram: ${indicators1h.histogram}
+- Tendencia: EMA20 ${tendencia1h} de EMA50
+
+TIMEFRAME 15M (señal de entrada):
+- RSI(14): ${indicators15m.rsi}
+- EMA20: ${indicators15m.ema20}
+- EMA50: ${indicators15m.ema50}
+- MACD: ${indicators15m.macd} | Signal: ${indicators15m.signal} | Histogram: ${indicators15m.histogram}
+
+CONTEXTO:
+- Precio actual: ${precioActual}
+- Volumen actual vs promedio: ${indicators15m.volumeVsAvg}%
+- Posición abierta: ${isPositionOpen ? 'SI' : 'NO'}
+
+REGLAS DE DECISIÓN:
+- Solo abrir LONG si tendencia 1h es alcista Y señal 15m confirma
+- Solo abrir SHORT si tendencia 1h es bajista Y señal 15m confirma
+- Si timeframes contradicen → HOLD obligatorio
+
+Responde ÚNICAMENTE con JSON sin texto ni backticks:
+{
+  "accion": "LONG" | "SHORT" | "HOLD" | "CLOSE",
+  "confianza": 0.00 a 1.00,
+  "razon": "explicación mencionando ambos timeframes",
+  "stop_loss": precio numérico,
+  "take_profit": precio numérico
+}`;
 
     try {
         const response = await axios.post(URL, {
@@ -49,4 +67,4 @@ async function getTradeDecision(indicators, isPositionOpen) {
     }
 }
 
-module.exports = { getTradeDecision };
+module.exports = { consultarGemini, getTradeDecision: consultarGemini };

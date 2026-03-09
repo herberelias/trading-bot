@@ -37,13 +37,22 @@ async function request(method, path, params = {}) {
 async function getKlines(symbol, interval, limit = 100) {
     try {
         const path = '/openApi/swap/v2/quote/klines';
-        // params para klines, timestamp no siempre va firmado acá según doc, probemos con request() que firma todo
         const response = await axios.get(`${BASE_URL}${path}?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-        return response.data.data; // [{open, close, high, low, volume, time}, ...] (depends on Bingx format)
+        return response.data.data;
     } catch (error) {
-        logger.error('Error obteniendo Klines de BingX', error.message);
+        logger.error(`Error obteniendo Klines de BingX para ${interval}`, error.message);
         throw error;
     }
 }
 
-module.exports = { request, getKlines };
+async function getCandles15m(symbol = null) {
+    const par = symbol || process.env.PAR || 'BTC-USDT';
+    return await getKlines(par, '15m', 100);
+}
+
+async function getCandles1h(symbol = null) {
+    const par = symbol || process.env.PAR || 'BTC-USDT';
+    return await getKlines(par, '1h', 50);
+}
+
+module.exports = { request, getKlines, getCandles15m, getCandles1h };
