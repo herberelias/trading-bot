@@ -35,7 +35,10 @@ async function runBot() {
 
         logger.info(`🤖 Gemini dice: ${decision.accion} (confianza: ${decision.confianza})`);
 
-        // Armar el log decision object 
+        // 4. Validar riesgo primero para saber si se ejecuta o no
+        const riskResult = await risk.checkRiskPermissions(decision, isOpen);
+
+        // Armar el log decision object AHORA que tenemos la razón
         const decisionLog = {
             rsi: indics.rsi,
             ema20: indics.ema20,
@@ -49,17 +52,16 @@ async function runBot() {
             confianza: decision.confianza,
             razon: decision.razon,
             stop_loss: decision.stop_loss,
-            take_profit: decision.take_profit
+            take_profit: decision.take_profit,
+            ejecutado: riskResult.canTrade && decision.accion !== 'HOLD',
+            motivo_no_ejecutado: riskResult.reason
         };
 
-        // Guardar decision
+        // Guardar decision en MySQL (ahora sí completita)
         await logger.logDecision(decisionLog);
 
-        // 4. Validar riesgo
-        const canTrade = await risk.checkRiskPermissions(decision, isOpen);
-
-        // 5. Ejecutar Trade
-        if (canTrade && decision.accion !== 'HOLD') {
+        // 5. Ejecutar Trade si todo fue aprobado
+        if (riskResult.canTrade && decision.accion !== 'HOLD') {
             await trader.executeTrade(decision, indics.currentPrice);
         }
 
