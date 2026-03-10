@@ -168,4 +168,46 @@ async function executeTrade(decision, currentPrice) {
     }
 }
 
-module.exports = { getPositions, getBalance, executeTrade };
+async function closeTrade(currentPrice) {
+    const isReal = process.env.MODO_REAL === 'true';
+    const symbol = process.env.PAR;
+
+    if (!isReal) {
+        logger.info('🔵 Simulación: Cerrando posición (MODO_REAL=false)');
+        await logger.logTrade({
+            accion: 'CLOSE', cantidad: 0,
+            precio_entrada: currentPrice,
+            stop_loss: null, take_profit: null, modo_real: false
+        });
+        return;
+    }
+
+    try {
+        const positions = await getPositions(symbol);
+        if (!positions || positions.length === 0) {
+            logger.info('No hay posición abierta para cerrar.');
+            return;
+        }
+        const pos = positions[0];
+        const closeSide = pos.positionSide === 'LONG' ? 'SELL' : 'BUY';
+        const qty = Math.abs(parseFloat(pos.positionAmt));
+
+        await placeOrder({
+            symbol, side: closeSide,
+            positionSide: pos.positionSide,
+            type: 'MARKET', quantity: qty
+        });
+
+        logger.info(`✅ Posición ${pos.positionSide} cerrada. Qty: ${qty}`);
+        await logger.logTrade({
+            accion: 'CLOSE', cantidad: qty,
+            precio_entrada: currentPrice,
+            stop_loss: null, take_profit: null, modo_real: true
+        });
+    } catch (error) {
+        logger.error('Error al cerrar posición', error);
+        throw error;
+    }
+}
+
+module.exports = { getPositions, getBalance, executeTrade, closeTrade };

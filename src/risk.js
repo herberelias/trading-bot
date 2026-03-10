@@ -1,31 +1,36 @@
 require('dotenv').config();
 const logger = require('./logger');
-const tracer = require('./trader');
 
 async function checkRiskPermissions(decision, isPositionOpen) {
     const minConfidence = parseFloat(process.env.CONFIANZA_MINIMA);
 
-    if (decision.accion === 'HOLD') {
-        const msg = 'La decision es HOLD, no se toman acciones.';
-        logger.info(msg);
-        return { canTrade: false, reason: msg };
-    }
-
+    // Confianza mínima siempre requerida
     if (decision.confianza < minConfidence) {
-        const msg = `Confianza baja (${decision.confianza} < ${minConfidence}). Operación descartada.`;
+        const msg = `Confianza baja (${decision.confianza} < ${minConfidence}). Descartado.`;
         logger.info(msg);
         return { canTrade: false, reason: msg };
     }
 
-    if (isPositionOpen && (decision.accion === 'LONG' || decision.accion === 'SHORT')) {
-        const msg = `Ya existe una posición abierta. No se abren nuevas posiciones.`;
+    // CLOSE: permitido si hay posición abierta
+    if (decision.accion === 'CLOSE') {
+        if (!isPositionOpen) {
+            const msg = 'CLOSE solicitado pero no hay posición abierta.';
+            logger.info(msg);
+            return { canTrade: false, reason: msg };
+        }
+        logger.info('✅ IA decide CLOSE. Cerrando posición.');
+        return { canTrade: true, reason: null };
+    }
+
+    // HOLD: no operar
+    if (decision.accion === 'HOLD') {
+        const msg = 'IA decide HOLD. Sin cambios.';
         logger.info(msg);
         return { canTrade: false, reason: msg };
     }
 
-    // Pérdida máxima diaria (ejemplo conceptual para MySQL)
-    // require('./db') y SELECT sum(pnl) FROM bot_trades WHERE date = CURDATE()
-    logger.info(`Evaluación de riesgo completada, se permite la operación.`);
+    // LONG / SHORT: la IA tiene libertad total
+    logger.info(`✅ Permiso concedido: ${decision.accion} con confianza ${decision.confianza}`);
     return { canTrade: true, reason: null };
 }
 

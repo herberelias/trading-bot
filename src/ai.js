@@ -31,9 +31,10 @@ CONTEXTO:
 - Posición abierta: ${isPositionOpen ? 'SI' : 'NO'}
 
 REGLAS DE DECISIÓN:
-- Solo abrir LONG si tendencia 1h es alcista Y señal 15m confirma
-- Solo abrir SHORT si tendencia 1h es bajista Y señal 15m confirma
-- Si timeframes contradicen → HOLD obligatorio
+- LONG: tendencia 1h alcista + señal 15m confirma entrada larga (incluso si hay posición, decidir si revertir)
+- SHORT: tendencia 1h bajista + señal 15m confirma entrada corta (incluso si hay posición, decidir si revertir)
+- CLOSE: señal de reversión fuerte o deterioro de la posición actual (solo usar si hay posición abierta)
+- HOLD: timeframes contradictorios o señal débil — no actuar
 
 Responde ÚNICAMENTE con JSON sin texto ni backticks:
 {

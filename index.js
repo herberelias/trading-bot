@@ -71,9 +71,13 @@ async function runBot() {
         // Guardar decision en MySQL (ahora sí completita)
         await logger.logDecision(decisionLog);
 
-        // 5. Ejecutar Trade si todo fue aprobado
-        if (riskResult.canTrade && decision.accion !== 'HOLD') {
-            await trader.executeTrade(decision, precioActual);
+        // 5. Ejecutar Trade
+        if (riskResult.canTrade) {
+            if (decision.accion === 'CLOSE') {
+                await trader.closeTrade(precioActual);
+            } else if (decision.accion !== 'HOLD') {
+                await trader.executeTrade(decision, precioActual);
+            }
         }
 
     } catch (error) {
