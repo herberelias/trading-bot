@@ -56,7 +56,7 @@ async function getPositions(symbol) {
 async function getTodayTrades() {
     try {
         const query = `
-            SELECT accion, precio_entrada, stop_loss, take_profit, capital_usado, timestamp_apertura
+            SELECT direccion AS accion, precio_entrada, stop_loss, take_profit, capital_usado, timestamp_apertura
             FROM bot_trades
             WHERE DATE(timestamp_apertura) = CURDATE()
             ORDER BY timestamp_apertura DESC
@@ -186,8 +186,7 @@ async function updateStopLoss(nuevoSL, currentPrice) {
                 type: 'STOP_MARKET',
                 quantity: qty.toFixed(4),
                 stopPrice: nuevoSL,
-                workingType: 'MARK_PRICE',
-                reduceOnly: 'true'
+                workingType: 'MARK_PRICE'
             });
 
             logger.info(`SL actualizado exitosamente a ${nuevoSL} para posicion ${positionSide}`);
