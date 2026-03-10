@@ -127,7 +127,7 @@ function getSesionMercado() {
 async function getRachaActual() {
     try {
         const query = `
-            SELECT accion, capital_usado, timestamp_apertura
+            SELECT direccion AS accion, capital_usado, timestamp_apertura
             FROM bot_trades
             WHERE modo = 'REAL' OR modo = 'SIMULADO'
             ORDER BY timestamp_apertura DESC
