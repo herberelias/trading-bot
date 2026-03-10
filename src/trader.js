@@ -63,6 +63,14 @@ async function getPositions(symbol) {
 async function placeOrder(orderParams) {
     try {
         const res = await request('POST', '/openApi/swap/v2/trade/order', orderParams);
+
+        // BingX siempre devuelve HTTP 200, incluso cuando hay errores (ej. saldo insuficiente).
+        // El verdadero estado de éxito está en "res.code === 0"
+        if (res && res.code !== 0) {
+            // Error interno de la API que no lanza excepción HTTP
+            throw new Error(`BingX API Error: ${res.msg || JSON.stringify(res)} (Code: ${res.code})`);
+        }
+
         return res;
     } catch (e) {
         logger.error('Error al ejecutar orden', e.response?.data || e.message);
