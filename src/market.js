@@ -55,4 +55,31 @@ async function getCandles1h(symbol = null) {
     return await getKlines(par, '1h', 50);
 }
 
-module.exports = { request, getKlines, getCandles15m, getCandles1h };
+// AGREGAR esta funcion nueva:
+async function getCandles4h(symbol = null) {
+    const par = symbol || process.env.PAR || 'BTC-USDT';
+    return await getKlines(par, '4h', 100);
+}
+
+// AGREGAR esta funcion nueva:
+async function getFundingRate(symbol = null) {
+    try {
+        const par = symbol || process.env.PAR || 'BTC-USDT';
+        const path = '/openApi/swap/v2/quote/premiumIndex';
+        const response = await axios.get(`${BASE_URL}${path}?symbol=${par}`);
+        const data = response.data.data;
+        if (data) {
+            return {
+                fundingRate: (parseFloat(data.lastFundingRate) * 100).toFixed(4),
+                nextFundingTime: data.nextFundingTime,
+                markPrice: parseFloat(data.markPrice)
+            };
+        }
+        return null;
+    } catch (error) {
+        logger.error('Error obteniendo Funding Rate', error.message);
+        return null;
+    }
+}
+
+module.exports = { request, getKlines, getCandles15m, getCandles1h, getCandles4h, getFundingRate };

@@ -6,74 +6,98 @@ const indicators = require('./src/indicators');
 const ai = require('./src/ai');
 const risk = require('./src/risk');
 const trader = require('./src/trader');
+const context = require('./src/context');
 
 async function runBot() {
     try {
         const par = process.env.PAR;
         logger.info(`========================================`);
-        logger.info(`Iniciando ciclo de analisis: ${par}`);
+        logger.info(`Iniciando ciclo: ${par} | ${new Date().toISOString()}`);
 
-        // 1. Obtener velas de mercado
-        const [candles15m, candles1h] = await Promise.all([
+        // 1. Obtener velas de mercado (3 timeframes en paralelo)
+        const [candles15m, candles1h, candles4h] = await Promise.all([
             market.getCandles15m(par),
-            market.getCandles1h(par)
+            market.getCandles1h(par),
+            market.getCandles4h(par)
         ]);
 
         if (!candles15m || candles15m.length < 50) {
-            logger.error('Velas 15m insuficientes. Abortando ciclo.');
+            logger.error('Velas 15m insuficientes. Abortando.');
             return;
         }
 
         // 2. Calcular indicadores tecnicos
         const indicators15m = indicators.calcularIndicadores(candles15m);
-        let indicators1h;
-
-        if (!candles1h || candles1h.length < 50) {
-            logger.info('Velas 1h insuficientes. Usando 15m como fallback.');
-            indicators1h = indicators15m;
-        } else {
-            indicators1h = indicators.calcularIndicadores(candles1h);
-        }
+        const indicators1h = (candles1h && candles1h.length >= 50)
+            ? indicators.calcularIndicadores(candles1h)
+            : indicators15m;
+        const indicators4h = (candles4h && candles4h.length >= 50)
+            ? indicators.calcularIndicadores(candles4h)
+            : null;
 
         const precioActual = indicators15m.currentPrice;
 
-        // 3. Obtener contexto completo de cuenta
-        const [posicionesAbiertas, balance, historialHoy] = await Promise.all([
+        // 3. Recolectar todo el contexto en paralelo
+        const [
+            posicionesAbiertas,
+            balance,
+            historialHoy,
+            fearGreed,
+            fundingRate,
+            racha
+        ] = await Promise.all([
             trader.getPositions(par),
             trader.getBalance(),
-            trader.getTodayTrades()
+            trader.getTodayTrades(),
+            context.getFearAndGreed(),
+            market.getFundingRate(par),
+            context.getRachaActual()
         ]);
 
         const isPositionOpen = posicionesAbiertas.length > 0;
 
-        logger.info(`Balance: ${balance} USDT | Posiciones: ${posicionesAbiertas.length} | Precio: ${precioActual}`);
+        // 4. Calcular soporte/resistencia con velas 1h
+        const soportesResistencias = candles1h && candles1h.length > 0
+            ? context.calcularSoportesResistencias(candles1h, 50)
+            : null;
 
-        // 4. Consultar IA con todo el contexto
+        // 5. Obtener sesion de mercado actual
+        const sesionMercado = context.getSesionMercado();
+
+        logger.info(`Balance: ${balance} USDT | Posiciones: ${posicionesAbiertas.length} | Precio: ${precioActual}`);
+        logger.info(`Sesion: ${sesionMercado.sesion} | Fear&Greed: ${fearGreed ? fearGreed.value : 'N/A'} | Funding: ${fundingRate ? fundingRate.fundingRate : 'N/A'}%`);
+
+        // 6. Consultar IA con contexto completo
         const decision = await ai.consultarGemini(
             indicators15m,
             indicators1h,
+            indicators4h,
             precioActual,
             posicionesAbiertas,
             balance,
-            historialHoy
+            historialHoy,
+            fearGreed,
+            soportesResistencias,
+            sesionMercado,
+            fundingRate,
+            racha
         );
 
         if (!decision) {
-            logger.error('IA no devolvio decision valida. Abortando ciclo.');
+            logger.error('IA no devolvio decision valida. Abortando.');
             return;
         }
 
         logger.info(`IA decide: ${decision.accion} | Confianza: ${decision.confianza} | Riesgo: ${decision.riesgo_pct}%`);
         logger.info(`Razon: ${decision.razon}`);
-
         if (decision.accion === 'MOVE_SL') {
-            logger.info(`Nuevo SL propuesto: ${decision.nuevo_stop_loss}`);
+            logger.info(`Nuevo SL: ${decision.nuevo_stop_loss}`);
         }
 
-        // 5. Validar permisos de riesgo
+        // 7. Validar permisos de riesgo
         const riskResult = await risk.checkRiskPermissions(decision, isPositionOpen);
 
-        // 6. Guardar decision en base de datos
+        // 8. Guardar decision en base de datos
         const decisionLog = {
             rsi: indicators15m.rsi,
             ema20: indicators15m.ema20,
@@ -94,9 +118,8 @@ async function runBot() {
 
         await logger.logDecision(decisionLog);
 
-        // 7. Ejecutar segun accion de la IA
+        // 9. Ejecutar accion
         if (riskResult.canTrade) {
-
             if (decision.accion === 'CLOSE') {
                 logger.info('Ejecutando CLOSE...');
                 await trader.closeTrade(precioActual);
@@ -119,13 +142,8 @@ async function runBot() {
     }
 }
 
-// Cron cada 15 minutos
-logger.info('Trading Bot v3.0 iniciado — IA con libertad total + MOVE_SL');
+logger.info('Trading Bot v4.0 — Contexto completo para IA');
 logger.info(`Par: ${process.env.PAR} | Modo: ${process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO'}`);
 
-cron.schedule('*/15 * * * *', () => {
-    runBot();
-});
-
-// Ejecutar inmediatamente al arrancar
+cron.schedule('*/15 * * * *', () => { runBot(); });
 runBot();

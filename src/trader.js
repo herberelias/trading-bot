@@ -46,7 +46,35 @@ async function getPositions(symbol) {
     try {
         const res = await request('GET', '/openApi/swap/v2/user/positions', { symbol });
         const positions = (res.data || []).filter(p => parseFloat(p.positionAmt) !== 0);
-        return positions;
+
+        // Enriquecer con precio de liquidacion estimado si no viene en la respuesta
+        return positions.map(p => {
+            // BingX generalmente incluye liquidationPrice en la respuesta
+            // Si no viene, lo estimamos: para LONG = entrada * (1 - 1/apalancamiento + 0.004)
+            const apalancamiento = parseFloat(process.env.APALANCAMIENTO) || 10;
+            const entrada = parseFloat(p.avgPrice || 0);
+
+            let liquidationEstimada = p.liquidationPrice;
+            if (!liquidationEstimada || parseFloat(liquidationEstimada) === 0) {
+                if (p.positionSide === 'LONG') {
+                    liquidationEstimada = (entrada * (1 - (1 / apalancamiento) + 0.004)).toFixed(2);
+                } else {
+                    liquidationEstimada = (entrada * (1 + (1 / apalancamiento) - 0.004)).toFixed(2);
+                }
+            }
+
+            // Calcular distancia al precio de liquidacion como porcentaje
+            const precioActualEst = entrada; // aproximacion
+            const distLiqPct = entrada > 0
+                ? Math.abs(((parseFloat(liquidationEstimada) - entrada) / entrada) * 100).toFixed(2)
+                : 'N/A';
+
+            return {
+                ...p,
+                liquidationPrice: liquidationEstimada,
+                distanciaLiquidacion: `${distLiqPct}%`
+            };
+        });
     } catch (e) {
         logger.error('Error al obtener posiciones', e.message);
         return [];
