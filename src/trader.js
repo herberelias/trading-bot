@@ -31,9 +31,18 @@ async function request(method, path, params = {}) {
 async function getBalance() {
     try {
         const res = await request('GET', '/openApi/swap/v2/user/balance');
-        // Suponiendo formato, adaptarlo a lo real
-        const asset = res.data.balance.asset || res.data.balance[0];
-        return parseFloat(asset.balance);
+        // BingX Swap V2 devuelve la estructura: res.data.balance.balance
+        if (res && res.data && res.data.balance) {
+            // A veces el balance viene directo en el objeto o en un array dependiendo del asset
+            const balanceObj = Array.isArray(res.data.balance) ? res.data.balance[0] : res.data.balance;
+            const saldo = balanceObj.balance || balanceObj.equity || balanceObj.availableMargin;
+
+            if (saldo !== undefined) {
+                return parseFloat(saldo);
+            }
+        }
+        logger.error('Estructura de balance inesperada en BingX:', JSON.stringify(res));
+        return 0;
     } catch (e) {
         logger.error('Error al obtener balance', e.message);
         return 0;
