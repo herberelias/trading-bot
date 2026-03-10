@@ -11,7 +11,19 @@ async function getKlinesSpot(symbol, interval, limit = 100) {
         const response = await axios.get(`${BASE_URL}${path}`, {
             params: { symbol, interval, limit }
         });
-        return response.data.data;
+        const data = response.data.data;
+        // Si la data es un arreglo de arreglos (Spot V1), la transformamos a objetos
+        if (data && data.length > 0 && Array.isArray(data[0])) {
+            return data.map(item => ({
+                time: item[0],
+                open: parseFloat(item[1]),
+                high: parseFloat(item[2]),
+                low: parseFloat(item[3]),
+                close: parseFloat(item[4]),
+                volume: parseFloat(item[5])
+            }));
+        }
+        return data;
     } catch (error) {
         logger.error(`[SPOT] Error obteniendo Klines ${interval}`, error.message);
         throw error;
