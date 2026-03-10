@@ -755,7 +755,7 @@ async function getDashboardData() {
 
         // Trades futuros hoy
         const [tradesFuturos] = await db.execute(`
-            SELECT par, accion, precio_entrada, stop_loss, take_profit, cantidad, timestamp_apertura
+            SELECT par, direccion AS accion, precio_entrada, stop_loss, take_profit, capital_usado AS cantidad, timestamp_apertura
             FROM bot_trades WHERE DATE(timestamp_apertura) = CURDATE()
             ORDER BY timestamp_apertura DESC LIMIT 20
         `);
@@ -769,10 +769,10 @@ async function getDashboardData() {
 
         // Posicion futuros
         const [posicion] = await db.execute(`
-            SELECT accion as tipo, precio_entrada as entrada, stop_loss as sl,
-                   take_profit as tp, cantidad as qty
+            SELECT direccion as tipo, precio_entrada as entrada, stop_loss as sl,
+                   take_profit as tp, capital_usado as qty
             FROM bot_trades WHERE DATE(timestamp_apertura) = CURDATE()
-            AND accion IN ('LONG','SHORT') ORDER BY timestamp_apertura DESC LIMIT 1
+            AND direccion IN ('LONG','SHORT') ORDER BY timestamp_apertura DESC LIMIT 1
         `);
 
         // Ultima decision futuros
@@ -796,8 +796,8 @@ async function getDashboardData() {
         // Stats futuros hoy
         const [sfHoy] = await db.execute(`
             SELECT COUNT(*) as total,
-                   SUM(accion='LONG') as longs,
-                   SUM(accion='SHORT') as shorts
+                   SUM(direccion='LONG') as longs,
+                   SUM(direccion='SHORT') as shorts
             FROM bot_trades WHERE DATE(timestamp_apertura) = CURDATE()
         `);
 
@@ -824,8 +824,8 @@ async function getDashboardData() {
         // Stats globales futuros
         const [sgFut] = await db.execute(`
             SELECT COUNT(*) as total,
-                   SUM(accion='LONG') as longs,
-                   SUM(accion='SHORT') as shorts,
+                   SUM(direccion='LONG') as longs,
+                   SUM(direccion='SHORT') as shorts,
                    COUNT(DISTINCT DATE(timestamp_apertura)) as diasActivo
             FROM bot_trades
         `);
