@@ -10,7 +10,7 @@ const SECRET = process.env.BINGX_SECRET;
 const BASE_URL = 'https://open-api.bingx.com';
 
 function getSignature(params) {
-    const query = Object.keys(params).sort().map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
+    const query = Object.keys(params).sort().map(key => `${key}=${params[key]}`).join('&');
     return crypto.createHmac('sha256', SECRET).update(query).digest('hex');
 }
 
