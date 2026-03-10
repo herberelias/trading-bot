@@ -225,6 +225,92 @@ async function updateStopLoss(nuevoSL, currentPrice) {
     }
 }
 
+
+// NUEVA FUNCION: Cancelar ordenes abiertas (como trailing stops previos)
+async function cancelOpenOrders() {
+    try {
+        const symbol = process.env.PAR;
+        const isReal = process.env.MODO_REAL === 'true';
+
+        if (!isReal) {
+            logger.info('[SIMULADO] Cancelando ordenes abiertas (trailing stops)');
+            return;
+        }
+
+        const params = { symbol, timestamp: Date.now() };
+        const signature = getSignature(params);
+        const queryString = Object.keys(params)
+            .sort()
+            .map(key => `${key}=${encodeURIComponent(params[key])}`)
+            .join('&') + `&signature=${signature}`;
+
+        const url = `${BASE_URL}/openApi/swap/v2/trade/allOpenOrders?${queryString}`;
+        await axios({ method: 'DELETE', url, headers: { 'X-BX-APIKEY': API_KEY } });
+
+        logger.info('Ordenes abiertas canceladas (trailing stops).');
+    } catch (error) {
+        logger.error('Error cancelando ordenes abiertas', error.message);
+    }
+}
+
+// NUEVA FUNCION: Colocar Trailing Stop
+async function placeTrailingStop(side, trailingPct) {
+    try {
+        const symbol = process.env.PAR;
+        const isReal = process.env.MODO_REAL === 'true';
+
+        const callbackRate = Math.min(Math.max(parseFloat(trailingPct) || 1.0, 0.1), 5.0);
+
+        if (!isReal) {
+            logger.info(`[SIMULADO] Trailing Stop ${side === 'LONG' ? 'SELL' : 'BUY'} | Callback: ${callbackRate}%`);
+            return { simulated: true };
+        }
+
+        const positions = await getPositions(symbol);
+        const pos = positions.find(p => p.positionSide === side);
+        if (!pos || parseFloat(pos.positionAmt) === 0) {
+            logger.info('No hay posicion abierta para colocar trailing stop.');
+            return null;
+        }
+
+        const qty = Math.abs(parseFloat(pos.positionAmt));
+        const orderSide = side === 'LONG' ? 'SELL' : 'BUY';
+
+        const params = {
+            symbol,
+            side: orderSide,
+            positionSide: side,
+            type: 'TRAILING_STOP_MARKET',
+            quantity: qty,
+            callbackRate: callbackRate,
+            timestamp: Date.now()
+        };
+
+        const signature = getSignature(params);
+        const queryString = Object.keys(params)
+            .sort()
+            .map(key => `${key}=${encodeURIComponent(params[key])}`)
+            .join('&') + `&signature=${signature}`;
+
+        const url = `${BASE_URL}/openApi/swap/v2/trade/order?${queryString}`;
+        const response = await axios({
+            method: 'POST',
+            url,
+            headers: { 'X-BX-APIKEY': API_KEY }
+        });
+
+        if (response.data && response.data.code !== 0) {
+            throw new Error(`BingX Trailing Stop Error: ${response.data.msg} (Code: ${response.data.code})`);
+        }
+
+        logger.info(`✅ Trailing Stop colocado: ${orderSide} ${qty} BTC | Callback: ${callbackRate}%`);
+        return response.data;
+    } catch (error) {
+        logger.error('Error colocando Trailing Stop en BingX', error.response?.data || error.message);
+        return null;
+    }
+}
+
 async function executeTrade(decision, currentPrice) {
     const isReal = process.env.MODO_REAL === 'true';
 
@@ -297,4 +383,4 @@ async function executeTrade(decision, currentPrice) {
     }
 }
 
-module.exports = { getPositions, getBalance, getTodayTrades, executeTrade, closeTrade, updateStopLoss };
+module.exports = { getPositions, getBalance, getTodayTrades, executeTrade, closeTrade, updateStopLoss, cancelOpenOrders, placeTrailingStop };

@@ -53,8 +53,8 @@ const logger = {
             const query = `
                 INSERT INTO bot_trades (
                     par, direccion, precio_entrada, stop_loss, take_profit, 
-                    capital_usado, apalancamiento, modo, timestamp_apertura
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    capital_usado, apalancamiento, modo, trailing_pct, timestamp_apertura
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             `;
             const modo_str = process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO';
             const values = [
@@ -65,7 +65,8 @@ const logger = {
                 trade.take_profit || null,
                 trade.cantidad || 0, // Aquí usabas "cantidad", en la db es "capital_usado"
                 process.env.APALANCAMIENTO || 1,
-                modo_str
+                modo_str,
+                trade.trailing_pct || null
             ];
             await db.execute(query, values);
             logger.info(`💾 Trade guardado en base de datos correctamente.`);

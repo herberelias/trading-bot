@@ -122,15 +122,26 @@ async function runBot() {
         if (riskResult.canTrade) {
             if (decision.accion === 'CLOSE') {
                 logger.info('Ejecutando CLOSE...');
+                await trader.cancelOpenOrders();
                 await trader.closeTrade(precioActual);
 
             } else if (decision.accion === 'MOVE_SL') {
                 logger.info(`Ejecutando MOVE_SL a ${decision.nuevo_stop_loss}...`);
+                await trader.cancelOpenOrders();
                 await trader.updateStopLoss(decision.nuevo_stop_loss, precioActual);
+                if (decision.trailing_pct) {
+                    await new Promise(r => setTimeout(r, 1500));
+                    const pos = posicionesAbiertas.find(p => p.positionSide === "LONG" || p.positionSide === "SHORT");
+                    if (pos) await trader.placeTrailingStop(pos.positionSide, decision.trailing_pct);
+                }
 
             } else if (decision.accion === 'LONG' || decision.accion === 'SHORT') {
                 logger.info(`Ejecutando ${decision.accion}...`);
                 await trader.executeTrade(decision, precioActual);
+                const trailingPct = parseFloat(decision.trailing_pct) || 1.0;
+                logger.info(`Colocando Trailing Stop: ${trailingPct}%...`);
+                await new Promise(r => setTimeout(r, 2000));
+                await trader.placeTrailingStop(decision.accion, trailingPct);
             }
         }
 

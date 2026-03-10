@@ -184,6 +184,25 @@ RIESGO POR TRADE (riesgo_pct):
 - Cualquier duda → HOLD
 
 ═══════════════════════════════════════════════════
+TRAILING STOP LOSS
+═══════════════════════════════════════════════════
+
+Al abrir LONG o SHORT debes decidir el trailing_pct.
+El trailing stop se coloca en BingX y protege la posicion segundo a segundo.
+Junto con el stop_loss inicial, el trailing reemplaza el SL dinamicamente.
+
+CRITERIOS para trailing_pct:
+- Señal muy fuerte, tendencia clara, alta conviccion → 0.5% a 0.8% (ajustado, protege mas)
+- Señal moderada, algo de volatilidad → 1.0% a 1.5% (balance entre proteccion y espacio)
+- Señal con dudas, alta volatilidad detectada → 2.0% a 3.0% (da mas espacio al precio)
+- Sesion de alta volatilidad (overlap EU/NY) → sumar 0.3% al trailing
+- RSI extremo (>75 o <25) → sumar 0.2% (mas espacio para correccion)
+
+EJEMPLO: Si el precio es 70000 y trailing_pct=1.0%:
+- Si BTC sube a 72000, el trailing SL queda en 71280 (72000 * 0.99)
+- Si BTC cae desde 72000 a 71280 → posicion se cierra con ganancia
+
+═══════════════════════════════════════════════════
 FORMATO DE RESPUESTA — SOLO JSON SIN TEXTO EXTRA
 ═══════════════════════════════════════════════════
 
@@ -193,8 +212,10 @@ FORMATO DE RESPUESTA — SOLO JSON SIN TEXTO EXTRA
   "riesgo_pct": 0 a 10,
   "stop_loss": precio numerico o null,
   "take_profit": precio numerico o null,
+  "trailing_pct": 0.5 a 3.0,
+  "trailing_pct": 0.5 a 3.0,
   "nuevo_stop_loss": precio numerico o null (solo para MOVE_SL),
-  "razon": "analisis completo: timeframes, niveles clave, sentimiento, sesion, por que este riesgo_pct"
+  "razon": "analisis completo: timeframes, niveles clave, sentimiento, sesion, por que este riesgo_pct y trailing_pct"
 }`;
 
     let retries = 3;
