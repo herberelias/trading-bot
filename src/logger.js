@@ -72,6 +72,67 @@ const logger = {
         } catch (error) {
             logger.error('No se pudo guardar el trade en la BD', error);
         }
+    },
+
+    logDecisionSpot: async (decision) => {
+        try {
+            const query = `
+                INSERT INTO spot_decisions (
+                    par, precio_actual, rsi, ema20, ema50, macd,
+                    volumen_ratio, accion, confianza, razon,
+                    precio_objetivo, stop_loss_ref, ejecutado,
+                    motivo_no_ejecutado, fecha, modo_real
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+            `;
+            const values = [
+                process.env.PAR_SPOT,
+                decision.precioActual,
+                decision.rsi,
+                decision.ema20,
+                decision.ema50,
+                decision.macd,
+                decision.volumenPct,
+                decision.accion,
+                decision.confianza,
+                decision.razon,
+                decision.precio_objetivo || null,
+                decision.stop_loss_ref || null,
+                decision.ejecutado ? 1 : 0,
+                decision.motivo_no_ejecutado || null,
+                process.env.MODO_REAL_SPOT === 'true' ? 1 : 0
+            ];
+            await db.execute(query, values);
+            logger.info(`[SPOT] Decision guardada en base de datos.`);
+        } catch (error) {
+            logger.error('[SPOT] No se pudo guardar decision en BD', error);
+        }
+    },
+
+    logTradeSpot: async (trade) => {
+        try {
+            const query = `
+                INSERT INTO spot_trades (
+                    par, accion, precio_entrada, precio_objetivo,
+                    stop_loss_ref, capital_usdt, cantidad_eth,
+                    modo, timestamp_apertura
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            `;
+            const modo_str = process.env.MODO_REAL_SPOT === 'true' ? 'REAL' : 'SIMULADO';
+            const values = [
+                process.env.PAR_SPOT,
+                trade.accion,
+                trade.precio_entrada,
+                trade.precio_objetivo || null,
+                trade.stop_loss_ref || null,
+                trade.capital_usdt || 0,
+                trade.cantidad_eth || 0,
+                modo_str
+            ];
+            await db.execute(query, values);
+            logger.info(`[SPOT] Trade guardado en base de datos.`);
+        } catch (error) {
+            logger.error('[SPOT] No se pudo guardar trade en BD', error);
+        }
     }
 };
 
