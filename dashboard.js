@@ -426,7 +426,7 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
       <div class="live-badge"><div class="live-dot"></div>LIVE</div>
     </div>
     <div class="header-right">
-      <span class="update-time">🕐 \${data.timestamp}</span>
+      <span class="update-time">🕐 ${data.timestamp}</span>
       <a href="/logout" class="logout-btn">Salir</a>
     </div>
   </div>
@@ -451,25 +451,25 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
     <div class="grid-4 mb12">
       <div class="card metric">
         <div class="card-title">Balance Futuros</div>
-        <div class="metric-value text-primary">\${data.balanceFuturos}</div>
+        <div class="metric-value text-primary">${data.balanceFuturos}</div>
         <div class="metric-label">USDT disponible</div>
-        <div class="metric-change \${data.modoFuturos === 'REAL' ? 'change-up' : 'change-neutral'} badge">\${data.modoFuturos}</div>
+        <div class="metric-change ${data.modoFuturos === 'REAL' ? 'change-up' : 'change-neutral'} badge">${data.modoFuturos}</div>
       </div>
       <div class="card metric">
         <div class="card-title">Balance Spot</div>
-        <div class="metric-value text-blue">\${data.balanceSpotUsdt}</div>
-        <div class="metric-label">USDT + \${data.balanceSpotEth} ETH</div>
-        <div class="metric-change \${data.modoSpot === 'REAL' ? 'change-up' : 'change-neutral'} badge">\${data.modoSpot}</div>
+        <div class="metric-value text-blue">${data.balanceSpotUsdt}</div>
+        <div class="metric-label">USDT + ${data.balanceSpotEth} ETH</div>
+        <div class="metric-change ${data.modoSpot === 'REAL' ? 'change-up' : 'change-neutral'} badge">${data.modoSpot}</div>
       </div>
       <div class="card metric">
         <div class="card-title">Trades Hoy</div>
-        <div class="metric-value">\${data.totalTradesToday}</div>
+        <div class="metric-value">${data.totalTradesToday}</div>
         <div class="metric-label">Futuros + Spot</div>
       </div>
       <div class="card metric">
         <div class="card-title">Win Rate Global</div>
-        <div class="metric-value \${parseFloat(data.winRateGlobal) >= 50 ? 'text-green' : 'text-red'}">\${data.winRateGlobal}%</div>
-        <div class="wr-bar-wrap"><div class="wr-bar" style="width:\${data.winRateGlobal}%"></div></div>
+        <div class="metric-value ${parseFloat(data.winRateGlobal) >= 50 ? 'text-green' : 'text-red'}">${data.winRateGlobal}%</div>
+        <div class="wr-bar-wrap"><div class="wr-bar" style="width:${data.winRateGlobal}%"></div></div>
       </div>
     </div>
 
@@ -478,24 +478,24 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
     <div class="grid-2 mb12">
       <div class="card">
         <div class="card-title">Futuros BTC-USDT</div>
-        \${data.posicionFuturos ? \`
+        ${data.posicionFuturos ? `
         <div class="pos-box">
-          <div class="pos-row"><span class="pos-label">Dirección</span><span class="badge badge-\${data.posicionFuturos.tipo.toLowerCase()}">\${data.posicionFuturos.tipo}</span></div>
-          <div class="pos-row"><span class="pos-label">Entrada</span><span class="pos-val">\${data.posicionFuturos.entrada} USDT</span></div>
-          <div class="pos-row"><span class="pos-label">Stop Loss</span><span class="pos-val text-red">\${data.posicionFuturos.sl}</span></div>
-          <div class="pos-row"><span class="pos-label">Take Profit</span><span class="pos-val text-green">\${data.posicionFuturos.tp}</span></div>
-          <div class="pos-row"><span class="pos-label">Cantidad</span><span class="pos-val">\${data.posicionFuturos.qty} BTC</span></div>
-        </div>\` : \`<div class="no-data">⏸ Sin posición abierta</div>\`}
+          <div class="pos-row"><span class="pos-label">Dirección</span><span class="badge badge-${data.posicionFuturos.tipo.toLowerCase()}">${data.posicionFuturos.tipo}</span></div>
+          <div class="pos-row"><span class="pos-label">Entrada</span><span class="pos-val">${data.posicionFuturos.entrada} USDT</span></div>
+          <div class="pos-row"><span class="pos-label">Stop Loss</span><span class="pos-val text-red">${data.posicionFuturos.sl}</span></div>
+          <div class="pos-row"><span class="pos-label">Take Profit</span><span class="pos-val text-green">${data.posicionFuturos.tp}</span></div>
+          <div class="pos-row"><span class="pos-label">Cantidad</span><span class="pos-val">${data.posicionFuturos.qty} BTC</span></div>
+        </div>` : `<div class="no-data">⏸ Sin posición abierta</div>`}
       </div>
       <div class="card">
         <div class="card-title">Spot ETH-USDT</div>
-        \${parseFloat(data.balanceSpotEth) > 0.0001 ? \`
+        ${parseFloat(data.balanceSpotEth) > 0.0001 ? `
         <div class="pos-box">
-          <div class="pos-row"><span class="pos-label">ETH en cartera</span><span class="pos-val text-green">\${data.balanceSpotEth} ETH</span></div>
-          <div class="pos-row"><span class="pos-label">Valor aprox</span><span class="pos-val">\${data.valorEthUsdt} USDT</span></div>
-          <div class="pos-row"><span class="pos-label">Último precio compra</span><span class="pos-val">\${data.ultimaCompraEth || 'N/A'} USDT</span></div>
-          <div class="pos-row"><span class="pos-label">USDT disponible</span><span class="pos-val">\${data.balanceSpotUsdt}</span></div>
-        </div>\` : \`<div class="no-data">⏸ Sin ETH en cartera</div>\`}
+          <div class="pos-row"><span class="pos-label">ETH en cartera</span><span class="pos-val text-green">${data.balanceSpotEth} ETH</span></div>
+          <div class="pos-row"><span class="pos-label">Valor aprox</span><span class="pos-val">${data.valorEthUsdt} USDT</span></div>
+          <div class="pos-row"><span class="pos-label">Último precio compra</span><span class="pos-val">${data.ultimaCompraEth || 'N/A'} USDT</span></div>
+          <div class="pos-row"><span class="pos-label">USDT disponible</span><span class="pos-val">${data.balanceSpotUsdt}</span></div>
+        </div>` : `<div class="no-data">⏸ Sin ETH en cartera</div>`}
       </div>
     </div>
 
@@ -504,43 +504,43 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
     <div class="grid-2 mb12">
       <div class="card">
         <div class="card-title">Bot Futuros</div>
-        \${data.ultimaDecisionFuturos ? \`
+        ${data.ultimaDecisionFuturos ? `
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-          <span class="badge badge-\${data.ultimaDecisionFuturos.accion.toLowerCase()}">\${data.ultimaDecisionFuturos.accion}</span>
-          <span style="font-size:0.82rem">Confianza: <b>\${(data.ultimaDecisionFuturos.confianza*100).toFixed(0)}%</b></span>
-          <span style="font-size:0.78rem;margin-left:auto;color:\${data.ultimaDecisionFuturos.ejecutado?'var(--green)':'var(--red)'}">\${data.ultimaDecisionFuturos.ejecutado?'✅ Ejecutado':'⏸ No ejecutado'}</span>
+          <span class="badge badge-${data.ultimaDecisionFuturos.accion.toLowerCase()}">${data.ultimaDecisionFuturos.accion}</span>
+          <span style="font-size:0.82rem">Confianza: <b>${(data.ultimaDecisionFuturos.confianza*100).toFixed(0)}%</b></span>
+          <span style="font-size:0.78rem;margin-left:auto;color:${data.ultimaDecisionFuturos.ejecutado?'var(--green)':'var(--red)'}">${data.ultimaDecisionFuturos.ejecutado?'✅ Ejecutado':'⏸ No ejecutado'}</span>
         </div>
-        <div class="ai-reason">\${data.ultimaDecisionFuturos.razon || 'Sin razón'}</div>\` : \`<div class="no-data">Sin datos</div>\`}
+        <div class="ai-reason">${data.ultimaDecisionFuturos.razon || 'Sin razón'}</div>` : `<div class="no-data">Sin datos</div>`}
       </div>
       <div class="card">
         <div class="card-title">Bot Spot</div>
-        \${data.ultimaDecisionSpot ? \`
+        ${data.ultimaDecisionSpot ? `
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-          <span class="badge badge-\${data.ultimaDecisionSpot.accion.toLowerCase()}">\${data.ultimaDecisionSpot.accion}</span>
-          <span style="font-size:0.82rem">Confianza: <b>\${(data.ultimaDecisionSpot.confianza*100).toFixed(0)}%</b></span>
-          <span style="font-size:0.78rem;margin-left:auto;color:\${data.ultimaDecisionSpot.ejecutado?'var(--green)':'var(--red)'}">\${data.ultimaDecisionSpot.ejecutado?'✅ Ejecutado':'⏸ No ejecutado'}</span>
+          <span class="badge badge-${data.ultimaDecisionSpot.accion.toLowerCase()}">${data.ultimaDecisionSpot.accion}</span>
+          <span style="font-size:0.82rem">Confianza: <b>${(data.ultimaDecisionSpot.confianza*100).toFixed(0)}%</b></span>
+          <span style="font-size:0.78rem;margin-left:auto;color:${data.ultimaDecisionSpot.ejecutado?'var(--green)':'var(--red)'}">${data.ultimaDecisionSpot.ejecutado?'✅ Ejecutado':'⏸ No ejecutado'}</span>
         </div>
-        <div class="ai-reason">\${data.ultimaDecisionSpot.razon || 'Sin razón'}</div>\` : \`<div class="no-data">Sin datos</div>\`}
+        <div class="ai-reason">${data.ultimaDecisionSpot.razon || 'Sin razón'}</div>` : `<div class="no-data">Sin datos</div>`}
       </div>
     </div>
 
     <!-- Últimos trades combinados -->
     <div class="section-label">Últimos Trades</div>
     <div class="card mb12">
-      \${data.todosLosTradesHoy.length > 0 ? data.todosLosTradesHoy.map(t => \`
+      ${data.todosLosTradesHoy.length > 0 ? data.todosLosTradesHoy.map(t => `
       <div class="trade-item">
         <div class="trade-left">
-          <div class="trade-icon icon-\${t.accion.toLowerCase()}">\${t.accion === 'BUY' || t.accion === 'LONG' ? '📈' : '📉'}</div>
+          <div class="trade-icon icon-${t.accion.toLowerCase()}">${t.accion === 'BUY' || t.accion === 'LONG' ? '📈' : '📉'}</div>
           <div>
-            <div class="trade-par">\${t.par} <span class="badge badge-\${t.accion.toLowerCase()}" style="margin-left:4px">\${t.accion}</span></div>
-            <div class="trade-time">\${t.bot} · \${t.hora}</div>
+            <div class="trade-par">${t.par} <span class="badge badge-${t.accion.toLowerCase()}" style="margin-left:4px">${t.accion}</span></div>
+            <div class="trade-time">${t.bot} · ${t.hora}</div>
           </div>
         </div>
         <div class="trade-right">
-          <div class="trade-price">\${t.precio} USDT</div>
-          <div class="trade-qty">\${t.detalle}</div>
+          <div class="trade-price">${t.precio} USDT</div>
+          <div class="trade-qty">${t.detalle}</div>
         </div>
-      </div>\`).join('') : \`<div class="no-data">Sin trades hoy</div>\`}
+      </div>`).join('') : `<div class="no-data">Sin trades hoy</div>`}
     </div>
 
   </div>
@@ -552,49 +552,49 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
     <div class="grid-4 mb12">
       <div class="card metric">
         <div class="card-title">Trades Hoy</div>
-        <div class="metric-value">\${data.statsFuturos.total}</div>
+        <div class="metric-value">${data.statsFuturos.total}</div>
       </div>
       <div class="card metric">
         <div class="card-title">LONG</div>
-        <div class="metric-value text-green">\${data.statsFuturos.longs}</div>
+        <div class="metric-value text-green">${data.statsFuturos.longs}</div>
       </div>
       <div class="card metric">
         <div class="card-title">SHORT</div>
-        <div class="metric-value text-red">\${data.statsFuturos.shorts}</div>
+        <div class="metric-value text-red">${data.statsFuturos.shorts}</div>
       </div>
       <div class="card metric">
         <div class="card-title">Win Rate</div>
-        <div class="metric-value \${parseFloat(data.statsFuturos.winRate) >= 50 ? 'text-green' : 'text-red'}">\${data.statsFuturos.winRate}%</div>
-        <div class="wr-bar-wrap"><div class="wr-bar" style="width:\${data.statsFuturos.winRate}%"></div></div>
+        <div class="metric-value ${parseFloat(data.statsFuturos.winRate) >= 50 ? 'text-green' : 'text-red'}">${data.statsFuturos.winRate}%</div>
+        <div class="wr-bar-wrap"><div class="wr-bar" style="width:${data.statsFuturos.winRate}%"></div></div>
       </div>
     </div>
 
     <div class="section-label">Historial de Trades</div>
     <div class="card mb12">
-      \${data.tradesFuturos.length > 0 ? data.tradesFuturos.map(t => \`
+      ${data.tradesFuturos.length > 0 ? data.tradesFuturos.map(t => `
       <div class="trade-item">
         <div class="trade-left">
-          <div class="trade-icon icon-\${t.accion.toLowerCase()}">\${t.accion === 'LONG' ? '📈' : '📉'}</div>
+          <div class="trade-icon icon-${t.accion.toLowerCase()}">${t.accion === 'LONG' ? '📈' : '📉'}</div>
           <div>
-            <div class="trade-par">BTC-USDT <span class="badge badge-\${t.accion.toLowerCase()}" style="margin-left:4px">\${t.accion}</span></div>
-            <div class="trade-time">\${t.timestamp_apertura}</div>
+            <div class="trade-par">BTC-USDT <span class="badge badge-${t.accion.toLowerCase()}" style="margin-left:4px">${t.accion}</span></div>
+            <div class="trade-time">${t.timestamp_apertura}</div>
           </div>
         </div>
         <div class="trade-right">
-          <div class="trade-price">\${t.precio_entrada} USDT</div>
-          <div class="trade-qty">SL: \${t.stop_loss || 'N/A'} · TP: \${t.take_profit || 'N/A'}</div>
+          <div class="trade-price">${t.precio_entrada} USDT</div>
+          <div class="trade-qty">SL: ${t.stop_loss || 'N/A'} · TP: ${t.take_profit || 'N/A'}</div>
         </div>
-      </div>\`).join('') : \`<div class="no-data">Sin trades registrados</div>\`}
+      </div>`).join('') : `<div class="no-data">Sin trades registrados</div>`}
     </div>
 
     <div class="section-label">Estadísticas Futuros</div>
     <div class="card mb12">
-      <div class="stat-item"><span class="stat-key">Total trades hoy</span><span class="stat-val">\${data.statsFuturos.total}</span></div>
-      <div class="stat-item"><span class="stat-key">LONG ejecutados</span><span class="stat-val text-green">\${data.statsFuturos.longs}</span></div>
-      <div class="stat-item"><span class="stat-key">SHORT ejecutados</span><span class="stat-val text-red">\${data.statsFuturos.shorts}</span></div>
-      <div class="stat-item"><span class="stat-key">Decisiones totales hoy</span><span class="stat-val">\${data.statsFuturos.decisiones}</span></div>
-      <div class="stat-item"><span class="stat-key">HOLD / Bloqueados</span><span class="stat-val text-muted">\${data.statsFuturos.holds}</span></div>
-      <div class="stat-item"><span class="stat-key">Tasa de ejecución</span><span class="stat-val">\${data.statsFuturos.tasaEjecucion}%</span></div>
+      <div class="stat-item"><span class="stat-key">Total trades hoy</span><span class="stat-val">${data.statsFuturos.total}</span></div>
+      <div class="stat-item"><span class="stat-key">LONG ejecutados</span><span class="stat-val text-green">${data.statsFuturos.longs}</span></div>
+      <div class="stat-item"><span class="stat-key">SHORT ejecutados</span><span class="stat-val text-red">${data.statsFuturos.shorts}</span></div>
+      <div class="stat-item"><span class="stat-key">Decisiones totales hoy</span><span class="stat-val">${data.statsFuturos.decisiones}</span></div>
+      <div class="stat-item"><span class="stat-key">HOLD / Bloqueados</span><span class="stat-val text-muted">${data.statsFuturos.holds}</span></div>
+      <div class="stat-item"><span class="stat-key">Tasa de ejecución</span><span class="stat-val">${data.statsFuturos.tasaEjecucion}%</span></div>
     </div>
   </div>
 
@@ -605,49 +605,49 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
     <div class="grid-4 mb12">
       <div class="card metric">
         <div class="card-title">Trades Hoy</div>
-        <div class="metric-value">\${data.statsSpot.total}</div>
+        <div class="metric-value">${data.statsSpot.total}</div>
       </div>
       <div class="card metric">
         <div class="card-title">Compras</div>
-        <div class="metric-value text-green">\${data.statsSpot.buys}</div>
+        <div class="metric-value text-green">${data.statsSpot.buys}</div>
       </div>
       <div class="card metric">
         <div class="card-title">Ventas</div>
-        <div class="metric-value text-red">\${data.statsSpot.sells}</div>
+        <div class="metric-value text-red">${data.statsSpot.sells}</div>
       </div>
       <div class="card metric">
         <div class="card-title">ETH en cartera</div>
-        <div class="metric-value text-blue">\${data.balanceSpotEth}</div>
+        <div class="metric-value text-blue">${data.balanceSpotEth}</div>
       </div>
     </div>
 
     <div class="section-label">Historial Spot</div>
     <div class="card mb12">
-      \${data.tradesSpot.length > 0 ? data.tradesSpot.map(t => \`
+      ${data.tradesSpot.length > 0 ? data.tradesSpot.map(t => `
       <div class="trade-item">
         <div class="trade-left">
-          <div class="trade-icon icon-\${t.accion.toLowerCase()}">\${t.accion === 'BUY' ? '🟢' : '🔴'}</div>
+          <div class="trade-icon icon-${t.accion.toLowerCase()}">${t.accion === 'BUY' ? '🟢' : '🔴'}</div>
           <div>
-            <div class="trade-par">ETH-USDT <span class="badge badge-\${t.accion.toLowerCase()}" style="margin-left:4px">\${t.accion}</span></div>
-            <div class="trade-time">\${t.timestamp_apertura}</div>
+            <div class="trade-par">ETH-USDT <span class="badge badge-${t.accion.toLowerCase()}" style="margin-left:4px">${t.accion}</span></div>
+            <div class="trade-time">${t.timestamp_apertura}</div>
           </div>
         </div>
         <div class="trade-right">
-          <div class="trade-price">\${t.precio_entrada} USDT</div>
-          <div class="trade-qty">\${t.cantidad_eth} ETH · \${t.capital_usdt} USDT</div>
+          <div class="trade-price">${t.precio_entrada} USDT</div>
+          <div class="trade-qty">${t.cantidad_eth} ETH · ${t.capital_usdt} USDT</div>
         </div>
-      </div>\`).join('') : \`<div class="no-data">Sin trades registrados</div>\`}
+      </div>`).join('') : `<div class="no-data">Sin trades registrados</div>`}
     </div>
 
     <div class="section-label">Estadísticas Spot</div>
     <div class="card mb12">
-      <div class="stat-item"><span class="stat-key">Total trades hoy</span><span class="stat-val">\${data.statsSpot.total}</span></div>
-      <div class="stat-item"><span class="stat-key">Compras (BUY)</span><span class="stat-val text-green">\${data.statsSpot.buys}</span></div>
-      <div class="stat-item"><span class="stat-key">Ventas (SELL)</span><span class="stat-val text-red">\${data.statsSpot.sells}</span></div>
-      <div class="stat-item"><span class="stat-key">Decisiones totales hoy</span><span class="stat-val">\${data.statsSpot.decisiones}</span></div>
-      <div class="stat-item"><span class="stat-key">HOLD / Bloqueados</span><span class="stat-val text-muted">\${data.statsSpot.holds}</span></div>
-      <div class="stat-item"><span class="stat-key">Tasa de ejecución</span><span class="stat-val">\${data.statsSpot.tasaEjecucion}%</span></div>
-      <div class="stat-item"><span class="stat-key">Último precio compra ETH</span><span class="stat-val">\${data.ultimaCompraEth || 'N/A'} USDT</span></div>
+      <div class="stat-item"><span class="stat-key">Total trades hoy</span><span class="stat-val">${data.statsSpot.total}</span></div>
+      <div class="stat-item"><span class="stat-key">Compras (BUY)</span><span class="stat-val text-green">${data.statsSpot.buys}</span></div>
+      <div class="stat-item"><span class="stat-key">Ventas (SELL)</span><span class="stat-val text-red">${data.statsSpot.sells}</span></div>
+      <div class="stat-item"><span class="stat-key">Decisiones totales hoy</span><span class="stat-val">${data.statsSpot.decisiones}</span></div>
+      <div class="stat-item"><span class="stat-key">HOLD / Bloqueados</span><span class="stat-val text-muted">${data.statsSpot.holds}</span></div>
+      <div class="stat-item"><span class="stat-key">Tasa de ejecución</span><span class="stat-val">${data.statsSpot.tasaEjecucion}%</span></div>
+      <div class="stat-item"><span class="stat-key">Último precio compra ETH</span><span class="stat-val">${data.ultimaCompraEth || 'N/A'} USDT</span></div>
     </div>
   </div>
 
@@ -660,18 +660,18 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
     <div class="grid-3 mb12">
       <div class="card metric">
         <div class="card-title">Win Rate Global</div>
-        <div class="metric-value \${parseFloat(data.winRateGlobal) >= 50 ? 'text-green' : 'text-red'}">\${data.winRateGlobal}%</div>
-        <div class="wr-bar-wrap"><div class="wr-bar" style="width:\${data.winRateGlobal}%"></div></div>
-        <div class="metric-label">\${data.totalTrades} trades totales</div>
+        <div class="metric-value ${parseFloat(data.winRateGlobal) >= 50 ? 'text-green' : 'text-red'}">${data.winRateGlobal}%</div>
+        <div class="wr-bar-wrap"><div class="wr-bar" style="width:${data.winRateGlobal}%"></div></div>
+        <div class="metric-label">${data.totalTrades} trades totales</div>
       </div>
       <div class="card metric">
         <div class="card-title">Total Trades</div>
-        <div class="metric-value">\${data.totalTrades}</div>
+        <div class="metric-value">${data.totalTrades}</div>
         <div class="metric-label">Desde el inicio</div>
       </div>
       <div class="card metric">
         <div class="card-title">Tasa de Ejecución</div>
-        <div class="metric-value text-primary">\${data.tasaEjecucionGlobal}%</div>
+        <div class="metric-value text-primary">${data.tasaEjecucionGlobal}%</div>
         <div class="metric-label">Decisiones ejecutadas</div>
       </div>
     </div>
@@ -680,17 +680,17 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
     <div class="grid-2 mb12">
       <div class="card">
         <div class="card-title">Futuros BTC</div>
-        <div class="stat-item"><span class="stat-key">Total trades</span><span class="stat-val">\${data.statsGlobalFuturos.total}</span></div>
-        <div class="stat-item"><span class="stat-key">LONG</span><span class="stat-val text-green">\${data.statsGlobalFuturos.longs}</span></div>
-        <div class="stat-item"><span class="stat-key">SHORT</span><span class="stat-val text-red">\${data.statsGlobalFuturos.shorts}</span></div>
-        <div class="stat-item"><span class="stat-key">Días activo</span><span class="stat-val">\${data.statsGlobalFuturos.diasActivo}</span></div>
+        <div class="stat-item"><span class="stat-key">Total trades</span><span class="stat-val">${data.statsGlobalFuturos.total}</span></div>
+        <div class="stat-item"><span class="stat-key">LONG</span><span class="stat-val text-green">${data.statsGlobalFuturos.longs}</span></div>
+        <div class="stat-item"><span class="stat-key">SHORT</span><span class="stat-val text-red">${data.statsGlobalFuturos.shorts}</span></div>
+        <div class="stat-item"><span class="stat-key">Días activo</span><span class="stat-val">${data.statsGlobalFuturos.diasActivo}</span></div>
       </div>
       <div class="card">
         <div class="card-title">Spot ETH</div>
-        <div class="stat-item"><span class="stat-key">Total trades</span><span class="stat-val">\${data.statsGlobalSpot.total}</span></div>
-        <div class="stat-item"><span class="stat-key">Compras</span><span class="stat-val text-green">\${data.statsGlobalSpot.buys}</span></div>
-        <div class="stat-item"><span class="stat-key">Ventas</span><span class="stat-val text-red">\${data.statsGlobalSpot.sells}</span></div>
-        <div class="stat-item"><span class="stat-key">Días activo</span><span class="stat-val">\${data.statsGlobalSpot.diasActivo}</span></div>
+        <div class="stat-item"><span class="stat-key">Total trades</span><span class="stat-val">${data.statsGlobalSpot.total}</span></div>
+        <div class="stat-item"><span class="stat-key">Compras</span><span class="stat-val text-green">${data.statsGlobalSpot.buys}</span></div>
+        <div class="stat-item"><span class="stat-key">Ventas</span><span class="stat-val text-red">${data.statsGlobalSpot.sells}</span></div>
+        <div class="stat-item"><span class="stat-key">Días activo</span><span class="stat-val">${data.statsGlobalSpot.diasActivo}</span></div>
       </div>
     </div>
 
@@ -698,17 +698,17 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
     <div class="grid-2 mb12">
       <div class="card">
         <div class="card-title">Decisiones Futuros Hoy</div>
-        <div class="stat-item"><span class="stat-key">Total decisiones</span><span class="stat-val">\${data.statsFuturos.decisiones}</span></div>
-        <div class="stat-item"><span class="stat-key">Ejecutadas</span><span class="stat-val text-green">\${data.statsFuturos.total}</span></div>
-        <div class="stat-item"><span class="stat-key">HOLD / Bloqueadas</span><span class="stat-val text-muted">\${data.statsFuturos.holds}</span></div>
-        <div class="stat-item"><span class="stat-key">Tasa ejecución</span><span class="stat-val">\${data.statsFuturos.tasaEjecucion}%</span></div>
+        <div class="stat-item"><span class="stat-key">Total decisiones</span><span class="stat-val">${data.statsFuturos.decisiones}</span></div>
+        <div class="stat-item"><span class="stat-key">Ejecutadas</span><span class="stat-val text-green">${data.statsFuturos.total}</span></div>
+        <div class="stat-item"><span class="stat-key">HOLD / Bloqueadas</span><span class="stat-val text-muted">${data.statsFuturos.holds}</span></div>
+        <div class="stat-item"><span class="stat-key">Tasa ejecución</span><span class="stat-val">${data.statsFuturos.tasaEjecucion}%</span></div>
       </div>
       <div class="card">
         <div class="card-title">Decisiones Spot Hoy</div>
-        <div class="stat-item"><span class="stat-key">Total decisiones</span><span class="stat-val">\${data.statsSpot.decisiones}</span></div>
-        <div class="stat-item"><span class="stat-key">Ejecutadas</span><span class="stat-val text-green">\${data.statsSpot.total}</span></div>
-        <div class="stat-item"><span class="stat-key">HOLD / Bloqueadas</span><span class="stat-val text-muted">\${data.statsSpot.holds}</span></div>
-        <div class="stat-item"><span class="stat-key">Tasa ejecución</span><span class="stat-val">\${data.statsSpot.tasaEjecucion}%</span></div>
+        <div class="stat-item"><span class="stat-key">Total decisiones</span><span class="stat-val">${data.statsSpot.decisiones}</span></div>
+        <div class="stat-item"><span class="stat-key">Ejecutadas</span><span class="stat-val text-green">${data.statsSpot.total}</span></div>
+        <div class="stat-item"><span class="stat-key">HOLD / Bloqueadas</span><span class="stat-val text-muted">${data.statsSpot.holds}</span></div>
+        <div class="stat-item"><span class="stat-key">Tasa ejecución</span><span class="stat-val">${data.statsSpot.tasaEjecucion}%</span></div>
       </div>
     </div>
 
@@ -853,12 +853,12 @@ async function getDashboardData() {
             ...tradesFuturos.slice(0, 5).map(t => ({
                 par: 'BTC-USDT', accion: t.accion,
                 precio: t.precio_entrada, hora: t.timestamp_apertura,
-                detalle: \`\${t.cantidad || '?'} BTC\`, bot: 'Futuros'
+                detalle: `${t.cantidad || '?'} BTC`, bot: 'Futuros'
             })),
             ...tradesSpot.slice(0, 5).map(t => ({
                 par: 'ETH-USDT', accion: t.accion,
                 precio: t.precio_entrada, hora: t.timestamp_apertura,
-                detalle: \`\${t.cantidad_eth} ETH\`, bot: 'Spot'
+                detalle: `${t.cantidad_eth} ETH`, bot: 'Spot'
             }))
         ].sort((a, b) => b.hora.localeCompare(a.hora)).slice(0, 8);
 
@@ -982,5 +982,5 @@ app.get('/api/data', requireAuth, async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Dashboard corriendo en http://localhost:\${PORT}`);
+    console.log(`Dashboard corriendo en http://localhost:${PORT}`);
 });
