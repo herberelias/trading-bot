@@ -44,27 +44,46 @@ Responde ÚNICAMENTE con JSON sin texto ni backticks:
   "take_profit": precio numérico
 }`;
 
-    try {
-        const response = await axios.post(URL, {
-            contents: [{ parts: [{ text: prompt }] }]
-        }, {
-            headers: { 'Content-Type': 'application/json' }
-        });
+    let retries = 3;
+    let attempt = 0;
 
-        let text = response.data.candidates[0].content.parts[0].text.trim();
-        // Limpiamos los backticks de generacion de codigo markdown por si la AI los agrega a pesar de la instruccion
-        if (text.startsWith('\`\`\`json')) {
-            text = text.replace(/^\`\`\`json/, '').replace(/\`\`\`$/, '').trim();
-        } else if (text.startsWith('\`\`\`')) {
-            text = text.replace(/^\`\`\`/, '').replace(/\`\`\`$/, '').trim();
+    while (attempt < retries) {
+        try {
+            const response = await axios.post(URL, {
+                contents: [{ parts: [{ text: prompt }] }]
+            }, {
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            let text = response.data.candidates[0].content.parts[0].text.trim();
+            // Limpiamos los backticks de generacion de codigo markdown por si la AI los agrega a pesar de la instruccion
+            if (text.startsWith('\`\`\`json')) {
+                text = text.replace(/^\`\`\`json/, '').replace(/\`\`\`$/, '').trim();
+            } else if (text.startsWith('\`\`\`')) {
+                text = text.replace(/^\`\`\`/, '').replace(/\`\`\`$/, '').trim();
+            }
+
+            const decision = JSON.parse(text);
+            return decision;
+        } catch (error) {
+            const status = error.response ? error.response.status : null;
+            attempt++;
+
+            if (status === 429 || status === 503 || status === 500) {
+                logger.error(`Error ${status} en Gemini API. Intento ${attempt} de ${retries}. Reintentando en 10s...`, error.message);
+                if (attempt < retries) {
+                    await new Promise(resolve => setTimeout(resolve, 10000)); // Esperar 10 segundos antes de reintentar
+                } else {
+                    logger.error('Se agotaron los reintentos para Gemini API.', error.message);
+                    return null;
+                }
+            } else {
+                logger.error('Error al contactar a Gemini API o al parsear JSON', error.message);
+                return null;
+            }
         }
-
-        const decision = JSON.parse(text);
-        return decision;
-    } catch (error) {
-        logger.error('Error al contactar a Gemini API o al parsear la respuesta JSON', error.message);
-        return null;
     }
+    return null;
 }
 
 module.exports = { consultarGemini, getTradeDecision: consultarGemini };
