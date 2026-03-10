@@ -83,8 +83,17 @@ async function executeTrade(decision, currentPrice) {
         logger.info(`🔴 EJECUCIÓN REAL: Preparando orden a BingX...`);
 
         const balance = await getBalance();
+        if (!balance || balance <= 0) {
+            logger.error('No se pudo obtener balance de BingX');
+            throw new Error('No se pudo obtener balance de BingX o es cero.');
+        }
+
         const riskPct = parseFloat(process.env.RIESGO_POR_TRADE);
         const lossAmount = balance * (riskPct / 100);
+
+        if (lossAmount <= 0) {
+            throw new Error('El capital a arriesgar (lossAmount) resulta en 0.');
+        }
 
         // Validar SL para que no divida por cero
         if (!decision.stop_loss || decision.stop_loss === currentPrice) {

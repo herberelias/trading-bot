@@ -18,14 +18,22 @@ async function runBot() {
         const candles15m = await market.getCandles15m(par);
         const candles1h = await market.getCandles1h(par);
 
-        if (!candles15m || candles15m.length === 0 || !candles1h || candles1h.length === 0) {
-            logger.error('No se obtuvieron klines de BingX');
+        if (!candles15m || candles15m.length < 50) {
+            logger.error('No se obtuvieron klines suficientes para 15m (mínimo 50)');
             return;
         }
 
-        // 2. Calcular indicadores
+        // 2. Calcular indicadores 15m
         const indicators15m = indicators.calcularIndicadores(candles15m);
-        const indicators1h = indicators.calcularIndicadores(candles1h);
+        let indicators1h;
+
+        // Validar velas de 1h para tener suficientes periodos (ej. EMA50)
+        if (!candles1h || candles1h.length < 50) {
+            logger.info('Warning: No hay suficientes velas de 1h (se requieren 50). Usando solo timeframe 15m para este ciclo.');
+            indicators1h = indicators15m; // Fallback: se usa 15m para ambos slots, manteniendo el ciclo vivo
+        } else {
+            indicators1h = indicators.calcularIndicadores(candles1h);
+        }
 
         // Consultar posiciones abiertas (simulación o real dependiendo del bot)
         const positions = await trader.getPositions(par);
