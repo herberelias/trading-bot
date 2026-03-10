@@ -311,6 +311,86 @@ async function placeTrailingStop(side, trailingPct) {
     }
 }
 
+
+// NUEVA FUNCION: Revisar trades en BD y cerrarlos si ya no existen en BingX
+async function checkAndCloseTrades() {
+    try {
+        const symbol = process.env.PAR;
+        const [openTrades] = await db.execute(`
+            SELECT id, direccion as accion, capital_usado, precio_entrada, apalancamiento 
+            FROM bot_trades 
+            WHERE timestamp_cierre IS NULL AND modo = ?
+        `, [process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO']);
+
+        if (openTrades.length === 0) return;
+
+        let activePositions = [];
+        if (process.env.MODO_REAL === 'true') {
+            const positions = await getPositions(symbol);
+            activePositions = positions.filter(p => p.positionSide === 'LONG' || p.positionSide === 'SHORT');
+        }
+
+        let recentOrders = [];
+        if (process.env.MODO_REAL === 'true') {
+            try {
+                const resOrders = await request('GET', '/openApi/swap/v2/trade/allFillOrders', { symbol, limit: 100 });
+                recentOrders = resOrders.data || [];
+            } catch(e) {}
+        }
+
+        for (const trade of openTrades) {
+            if (process.env.MODO_REAL !== 'true') continue;
+
+            const isOpen = activePositions.some(p => p.positionSide === trade.accion);
+            if (isOpen) continue;
+
+            logger.info(`Verificando cierre de trade ID ${trade.id} (${trade.accion})...`);
+
+            const closeSide = trade.accion === 'LONG' ? 'SELL' : 'BUY';
+            const filledOrder = recentOrders.find(o => o.side === closeSide && parseFloat(o.price) > 0);
+            
+            let precioCierre = filledOrder ? parseFloat(filledOrder.price) : null;
+            
+            if (!precioCierre) {
+                try {
+                    const marketRes = await request('GET', '/openApi/swap/v2/quote/ticker', { symbol });
+                    if(marketRes.data && marketRes.data.lastPrice) {
+                        precioCierre = parseFloat(marketRes.data.lastPrice);
+                    }
+                } catch(e) {}
+            }
+
+            if (!precioCierre) precioCierre = trade.precio_entrada; // fallback fallback
+
+            const capital = parseFloat(trade.capital_usado);
+            const entrada = parseFloat(trade.precio_entrada);
+            const apalancamiento = parseFloat(trade.apalancamiento) || 10;
+            
+            let gananciaPerdida = 0;
+            if (trade.accion === 'LONG') {
+                gananciaPerdida = ((precioCierre - entrada) / entrada) * capital * apalancamiento;
+            } else {
+                gananciaPerdida = ((entrada - precioCierre) / entrada) * capital * apalancamiento;
+            }
+
+            const resultado = gananciaPerdida > 0 ? 'WIN' : 'LOSS';
+
+            await db.execute(`
+                UPDATE bot_trades SET
+                    timestamp_cierre = NOW(),
+                    precio_cierre = ?,
+                    ganancia_perdida = ?,
+                    resultado = ?
+                WHERE id = ?
+            `, [precioCierre, gananciaPerdida, resultado, trade.id]);
+
+            logger.info(`Trade ${trade.id} cerrado en BD: ${resultado} | PnL: ${gananciaPerdida.toFixed(2)} USDT`);
+        }
+    } catch (e) {
+        logger.error('Error en checkAndCloseTrades', e.message);
+    }
+}
+
 async function executeTrade(decision, currentPrice) {
     const isReal = process.env.MODO_REAL === 'true';
 
@@ -383,4 +463,4 @@ async function executeTrade(decision, currentPrice) {
     }
 }
 
-module.exports = { getPositions, getBalance, getTodayTrades, executeTrade, closeTrade, updateStopLoss, cancelOpenOrders, placeTrailingStop };
+module.exports = { getPositions, getBalance, getTodayTrades, executeTrade, closeTrade, updateStopLoss, cancelOpenOrders, placeTrailingStop, checkAndCloseTrades };

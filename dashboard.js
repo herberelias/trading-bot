@@ -563,9 +563,9 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
         <div class="metric-value text-red">${data.statsFuturos.shorts}</div>
       </div>
       <div class="card metric">
-        <div class="card-title">Win Rate</div>
-        <div class="metric-value ${parseFloat(data.statsFuturos.winRate) >= 50 ? 'text-green' : 'text-red'}">${data.statsFuturos.winRate}%</div>
-        <div class="wr-bar-wrap"><div class="wr-bar" style="width:${data.statsFuturos.winRate}%"></div></div>
+        <div class="card-title">Win Rate Real</div>
+        <div class="metric-value ${parseFloat(data.winRateGlobal) >= 50 ? 'text-green' : 'text-red'}">${data.winRateGlobal}%</div>
+        <div class="wr-bar-wrap"><div class="wr-bar" style="width:${data.winRateGlobal}%"></div></div>
       </div>
     </div>
 
@@ -592,9 +592,9 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
       <div class="stat-item"><span class="stat-key">Total trades hoy</span><span class="stat-val">${data.statsFuturos.total}</span></div>
       <div class="stat-item"><span class="stat-key">LONG ejecutados</span><span class="stat-val text-green">${data.statsFuturos.longs}</span></div>
       <div class="stat-item"><span class="stat-key">SHORT ejecutados</span><span class="stat-val text-red">${data.statsFuturos.shorts}</span></div>
-      <div class="stat-item"><span class="stat-key">Decisiones totales hoy</span><span class="stat-val">${data.statsFuturos.decisiones}</span></div>
-      <div class="stat-item"><span class="stat-key">HOLD / Bloqueados</span><span class="stat-val text-muted">${data.statsFuturos.holds}</span></div>
-      <div class="stat-item"><span class="stat-key">Tasa de ejecución</span><span class="stat-val">${data.statsFuturos.tasaEjecucion}%</span></div>
+      <div class="stat-item"><span class="stat-key">Total (Histórico Cerrados)</span><span class="stat-val">${data.statsFuturos.tradesCerrados}</span></div>\n      <div class="stat-item"><span class="stat-key">Trades ganadores</span><span class="stat-val text-green">${data.statsFuturos.ganados}</span></div>
+      <div class="stat-item"><span class="stat-key">Trades perdedores</span><span class="stat-val text-red">${data.statsFuturos.perdidos}</span></div>
+      <div class="stat-item" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span class="stat-key" style="font-weight:600;color:#fff">PnL Total Acumulado</span><span class="stat-val ${parseFloat(data.statsFuturos.pnlTotal)>=0?'text-green':'text-red'}" style="font-weight:600;font-size:1.1rem">${data.statsFuturos.pnlTotal} USDT</span></div>\n      <div class="stat-item"><span class="stat-key">Tasa de ejecución (IA vs Ejecutadas)</span><span class="stat-val">${data.statsFuturos.tasaEjecucion}%</span></div>
     </div>
   </div>
 
@@ -753,6 +753,20 @@ async function getDashboardData() {
             return new Date(d).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
         };
 
+        const traderFuturos = require('./src/trader');
+        const traderSpot = require('./src/spot/trader');
+
+        const [balanceFut, balSpot] = await Promise.all([
+            traderFuturos.getBalance().catch(() => 0),
+            traderSpot.getSpotBalance().catch(() => ({ usdt: 0, eth: 0 }))
+        ]);
+
+        let precioEth = 0;
+        try {
+            const marketSpot = require('./src/spot/market');
+            precioEth = await marketSpot.getCurrentPrice('ETH-USDT');
+        } catch(e) {}
+
         // Trades futuros hoy
         const [tradesFuturos] = await db.execute(`
             SELECT par, direccion AS accion, precio_entrada, stop_loss, take_profit, capital_usado AS cantidad, timestamp_apertura
@@ -772,13 +786,14 @@ async function getDashboardData() {
             SELECT direccion as tipo, precio_entrada as entrada, stop_loss as sl,
                    take_profit as tp, capital_usado as qty
             FROM bot_trades WHERE DATE(timestamp_apertura) = CURDATE()
+            AND timestamp_cierre IS NULL
             AND direccion IN ('LONG','SHORT') ORDER BY timestamp_apertura DESC LIMIT 1
         `);
 
         // Ultima decision futuros
         const [decFuturos] = await db.execute(`
             SELECT accion, confianza, razon, ejecutado FROM bot_decisions
-            ORDER BY fecha DESC LIMIT 1
+            ORDER BY timestamp DESC LIMIT 1
         `);
 
         // Ultima decision spot
@@ -804,7 +819,7 @@ async function getDashboardData() {
         // Decisiones futuros hoy
         const [dfHoy] = await db.execute(`
             SELECT COUNT(*) as total, SUM(ejecutado=1) as ejecutadas
-            FROM bot_decisions WHERE DATE(fecha) = CURDATE()
+            FROM bot_decisions WHERE DATE(timestamp) = CURDATE()
         `);
 
         // Stats spot hoy
@@ -839,6 +854,21 @@ async function getDashboardData() {
             FROM spot_trades
         `);
 
+        // WIN RATE REAL - PROBLEMA 5
+        const [winData] = await db.execute(`
+            SELECT
+                COUNT(*) as total,
+                SUM(resultado = 'WIN') as ganados,
+                SUM(resultado = 'LOSS') as perdidos,
+                SUM(ganancia_perdida) as pnl_total
+            FROM bot_trades
+            WHERE timestamp_cierre IS NOT NULL
+        `);
+
+        const winRateReal = winData[0].total > 0
+            ? ((winData[0].ganados / winData[0].total) * 100).toFixed(0)
+            : 0;
+
         // Formatear trades
         tradesFuturos.forEach(t => t.timestamp_apertura = fmt(t.timestamp_apertura));
         tradesSpot.forEach(t => {
@@ -862,29 +892,23 @@ async function getDashboardData() {
             }))
         ].sort((a, b) => b.hora.localeCompare(a.hora)).slice(0, 8);
 
-        // Calcular win rate (aproximado por ratio ejecuciones vs decisiones)
+        // Stats adicionales para dashboard
         const totalTrades = (parseInt(sgFut[0].total) || 0) + (parseInt(sgSpot[0].total) || 0);
-        const totalDecisiones = (parseInt(dfHoy[0]?.total) || 1) + (parseInt(dsHoy[0]?.total) || 1);
-        const totalEjecutadas = (parseInt(dfHoy[0]?.ejecutadas) || 0) + (parseInt(dsHoy[0]?.ejecutadas) || 0);
-        const winRateGlobal = totalDecisiones > 0 ? ((totalEjecutadas / totalDecisiones) * 100).toFixed(0) : 0;
-        const tasaEjecucionGlobal = totalDecisiones > 0 ? ((totalEjecutadas / totalDecisiones) * 100).toFixed(0) : 0;
 
-        // Stats futuros hoy calculadas
         const sfTotal = parseInt(sfHoy[0].total) || 0;
         const dfTotal = parseInt(dfHoy[0]?.total) || 0;
         const dfEjec = parseInt(dfHoy[0]?.ejecutadas) || 0;
 
-        // Stats spot hoy calculadas
         const ssTotal = parseInt(ssHoy[0].total) || 0;
         const dsTotal = parseInt(dsHoy[0]?.total) || 0;
         const dsEjec = parseInt(dsHoy[0]?.ejecutadas) || 0;
 
         return {
             timestamp: new Date().toLocaleTimeString('es-SV'),
-            balanceFuturos: '—',
-            balanceSpotUsdt: '—',
-            balanceSpotEth: '—',
-            valorEthUsdt: '—',
+            balanceFuturos: balanceFut ? balanceFut.toFixed(2) : '0.00',
+            balanceSpotUsdt: balSpot ? balSpot.usdt.toFixed(2) : '0.00',
+            balanceSpotEth: balSpot ? balSpot.eth.toFixed(6) : '0.000000',
+            valorEthUsdt: (balSpot && precioEth) ? (balSpot.eth * precioEth).toFixed(2) : '0.00',
             modoFuturos: process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO',
             modoSpot: process.env.MODO_REAL_SPOT === 'true' ? 'REAL' : 'SIMULADO',
             posicionFuturos: posicion[0] || null,
@@ -896,8 +920,8 @@ async function getDashboardData() {
             ultimaCompraEth: ultimaCompra[0] ? parseFloat(ultimaCompra[0].precio_entrada).toFixed(2) : null,
             totalTradesToday: sfTotal + ssTotal,
             totalTrades,
-            winRateGlobal,
-            tasaEjecucionGlobal,
+            winRateGlobal: winRateReal, // Reemplazado por el calculo real de bd
+            tasaEjecucionGlobal: dfTotal > 0 ? ((dfEjec / dfTotal) * 100).toFixed(0) : 0,
             statsFuturos: {
                 total: sfTotal,
                 longs: parseInt(sfHoy[0].longs) || 0,
@@ -905,7 +929,11 @@ async function getDashboardData() {
                 decisiones: dfTotal,
                 holds: dfTotal - dfEjec,
                 winRate: dfTotal > 0 ? ((dfEjec / dfTotal) * 100).toFixed(0) : 0,
-                tasaEjecucion: dfTotal > 0 ? ((dfEjec / dfTotal) * 100).toFixed(0) : 0
+                tasaEjecucion: dfTotal > 0 ? ((dfEjec / dfTotal) * 100).toFixed(0) : 0,
+                tradesCerrados: winData[0].total || 0,
+                ganados: winData[0].ganados || 0,
+                perdidos: winData[0].perdidos || 0,
+                pnlTotal: parseFloat(winData[0].pnl_total || 0).toFixed(2)
             },
             statsSpot: {
                 total: ssTotal,
@@ -940,14 +968,13 @@ async function getDashboardData() {
             ultimaDecisionSpot: null, ultimaCompraEth: null,
             totalTradesToday: 0, totalTrades: 0, winRateGlobal: 0,
             tasaEjecucionGlobal: 0,
-            statsFuturos: { total:0, longs:0, shorts:0, decisiones:0, holds:0, winRate:0, tasaEjecucion:0 },
+            statsFuturos: { total:0, longs:0, shorts:0, decisiones:0, holds:0, winRate:0, tasaEjecucion:0, tradesCerrados:0, ganados:0, perdidos:0, pnlTotal:0 },
             statsSpot: { total:0, buys:0, sells:0, decisiones:0, holds:0, tasaEjecucion:0 },
             statsGlobalFuturos: { total:0, longs:0, shorts:0, diasActivo:0 },
             statsGlobalSpot: { total:0, buys:0, sells:0, diasActivo:0 }
         };
     }
 }
-
 // ═══════════════════════════════════════════
 // RUTAS
 // ═══════════════════════════════════════════
