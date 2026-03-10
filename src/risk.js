@@ -2,35 +2,46 @@ require('dotenv').config();
 const logger = require('./logger');
 
 async function checkRiskPermissions(decision, isPositionOpen) {
-    const minConfidence = parseFloat(process.env.CONFIANZA_MINIMA);
+    const minConfidence = parseFloat(process.env.CONFIANZA_MINIMA) || 0.55;
 
-    // Confianza mínima siempre requerida
+    // Unico filtro: confianza minima
     if (decision.confianza < minConfidence) {
-        const msg = `Confianza baja (${decision.confianza} < ${minConfidence}). Descartado.`;
+        const msg = `Confianza insuficiente (${decision.confianza} < ${minConfidence}). Descartado.`;
+        logger.info(`BLOQUEADO: ${msg}`);
+        return { canTrade: false, reason: msg };
+    }
+
+    // HOLD: la IA decidio no operar
+    if (decision.accion === 'HOLD') {
+        const msg = 'IA decide HOLD. Sin accion.';
         logger.info(msg);
         return { canTrade: false, reason: msg };
     }
 
-    // CLOSE: permitido si hay posición abierta
+    // CLOSE: solo si hay posicion abierta
     if (decision.accion === 'CLOSE') {
         if (!isPositionOpen) {
-            const msg = 'CLOSE solicitado pero no hay posición abierta.';
+            const msg = 'CLOSE solicitado pero no hay posicion abierta.';
             logger.info(msg);
             return { canTrade: false, reason: msg };
         }
-        logger.info('✅ IA decide CLOSE. Cerrando posición.');
+        logger.info(`PERMITIDO: CLOSE con confianza ${decision.confianza}`);
         return { canTrade: true, reason: null };
     }
 
-    // HOLD: no operar
-    if (decision.accion === 'HOLD') {
-        const msg = 'IA decide HOLD. Sin cambios.';
-        logger.info(msg);
-        return { canTrade: false, reason: msg };
+    // MOVE_SL: solo si hay posicion abierta
+    if (decision.accion === 'MOVE_SL') {
+        if (!isPositionOpen) {
+            const msg = 'MOVE_SL solicitado pero no hay posicion abierta.';
+            logger.info(msg);
+            return { canTrade: false, reason: msg };
+        }
+        logger.info(`PERMITIDO: MOVE_SL a ${decision.nuevo_stop_loss} con confianza ${decision.confianza}`);
+        return { canTrade: true, reason: null };
     }
 
-    // LONG / SHORT: la IA tiene libertad total
-    logger.info(`✅ Permiso concedido: ${decision.accion} con confianza ${decision.confianza}`);
+    // LONG / SHORT: IA tiene libertad total, sin restriccion por posicion abierta
+    logger.info(`PERMITIDO: ${decision.accion} | Confianza: ${decision.confianza} | Riesgo: ${decision.riesgo_pct}%`);
     return { canTrade: true, reason: null };
 }
 
