@@ -345,45 +345,6 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- RIGHT COLUMN: INSIGHTS & UTILS -->
-        <div style="display:flex; flex-direction:column; gap:1.5rem;">
-
-            <!-- DAILY PERFORMANCE TABLE (MINI) -->
-            <div class="card">
-                <div class="card-title">📅 Diario (Futuros)</div>
-                <div class="table-wrap" style="margin-top:1rem;">
-                    <table>
-                        <thead><tr><th>Fecha</th><th>PnL</th><th>Ops</th></tr></thead>
-                        <tbody>
-                            ${data.daily.map(d => `
-                                <tr>
-                                    <td style="font-size:0.8rem; font-weight:600;">${d.fecha}</td>
-                                    <td style="font-weight:800; color:${parseFloat(d.pnl) >= 0 ? 'var(--success)' : 'var(--danger)'}">${parseFloat(d.pnl) >= 0 ? '+' : ''}${d.pnl}</td>
-                                    <td style="font-size:0.75rem;">${d.total}</td>
-                                </tr>
-                            `).slice(0, 8).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- SPOT INVENTORY CARD -->
-            <div class="card">
-                <div class="card-title">📦 Inventario Spot (ETH)</div>
-                <div style="margin-top:1.25rem;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                        <span style="color:var(--text-dim); font-size:0.8rem;">Reservas ETH:</span>
-                        <span style="font-weight:800; color:var(--primary)">${data.spot.balanceEth} ETH</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-                        <span style="color:var(--text-dim); font-size:0.8rem;">Valoración USDT:</span>
-                        <span style="font-weight:800;">$${data.spot.estimatedValue}</span>
-                    </div>
-                    <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:3px;">
-                        <div style="height:100%; background:var(--primary); width:75%; border-radius:3px; opacity:0.8;"></div>
-                    </div>
-                </div>
-            </div>
 
         </div>
     </div>
