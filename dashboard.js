@@ -436,10 +436,10 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
 
   <!-- TABS -->
   <div class="tabs">
-    <button class="tab active" onclick="showTab('resumen')">Resumen</button>
-    <button class="tab" onclick="showTab('futuros')">Futuros BTC</button>
-    <button class="tab" onclick="showTab('spot')">Spot ETH</button>
-    <button class="tab" onclick="showTab('estadisticas')">Estadísticas</button>
+    <button class="tab active" onclick="showTab('resumen', this)">Resumen</button>
+    <button class="tab" onclick="showTab('futuros', this)">Futuros BTC</button>
+    <button class="tab" onclick="showTab('spot', this)">Spot ETH</button>
+    <button class="tab" onclick="showTab('estadisticas', this)">Estadísticas</button>
   </div>
 
   <!-- ══════════════════════════════════════ -->
@@ -594,7 +594,7 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
       <div class="stat-item"><span class="stat-key">SHORT ejecutados</span><span class="stat-val text-red">${data.statsFuturos.shorts}</span></div>
       <div class="stat-item"><span class="stat-key">Total (Histórico Cerrados)</span><span class="stat-val">${data.statsFuturos.tradesCerrados}</span></div>\n      <div class="stat-item"><span class="stat-key">Trades ganadores</span><span class="stat-val text-green">${data.statsFuturos.ganados}</span></div>
       <div class="stat-item"><span class="stat-key">Trades perdedores</span><span class="stat-val text-red">${data.statsFuturos.perdidos}</span></div>
-      <div class="stat-item" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span class="stat-key" style="font-weight:600;color:#fff">PnL Total Acumulado</span><span class="stat-val ${parseFloat(data.statsFuturos.pnlTotal)>=0?'text-green':'text-red'}" style="font-weight:600;font-size:1.1rem">${data.statsFuturos.pnlTotal} USDT</span></div>\n      <div class="stat-item"><span class="stat-key">Tasa de ejecución (IA vs Ejecutadas)</span><span class="stat-val">${data.statsFuturos.tasaEjecucion}%</span></div>
+      <div class="stat-item" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><span class="stat-key" style="font-weight:600;color:var(--text)">PnL Total Acumulado</span><span class="stat-val ${parseFloat(data.statsFuturos.pnlTotal)>=0?'text-green':'text-red'}" style="font-weight:600;font-size:1.1rem">${data.statsFuturos.pnlTotal} USDT</span></div>\n      <div class="stat-item"><span class="stat-key">Tasa de ejecución (IA vs Ejecutadas)</span><span class="stat-val">${data.statsFuturos.tasaEjecucion}%</span></div>
     </div>
   </div>
 
