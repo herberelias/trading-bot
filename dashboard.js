@@ -170,28 +170,24 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
     <!-- RESUMEN GLOBAL (Adaptable Grid) -->
     <div class="kpi-row">
         <div class="kpi-card">
-            <div class="kpi-label">Balance Total Estimado</div>
-            <div class="kpi-value" style="color:var(--primary)">$${data.global.totalBalance}</div>
-            <div class="kpi-sub">Futuros + Spot + Assets</div>
+            <div class="kpi-label">💼 Balance Futuros</div>
+            <div class="kpi-value" style="color:var(--primary)">$${data.futuros.balance}</div>
+            <div class="kpi-sub">USDT disponibles</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">PnL Neto (${period === 'today' ? 'Hoy' : period === '7days' ? '7d' : 'Total'})</div>
-            <div class="kpi-value" style="color:${parseFloat(data.global.totalPnL) >= 0 ? 'var(--success)' : 'var(--danger)'}">
-                ${parseFloat(data.global.totalPnL) >= 0 ? '+' : ''}$${data.global.totalPnL}
-            </div>
-            <div class="kpi-sub">Solo operaciones cerradas</div>
+            <div class="kpi-label">💵 Balance Spot USDT</div>
+            <div class="kpi-value" style="color:var(--success)">$${data.spot.balanceUsdt}</div>
+            <div class="kpi-sub">USDT en cuenta Spot</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">Ratio de Eficiencia</div>
-            <div class="kpi-value">${data.global.successRate}%</div>
-            <div style="height:4px; background:rgba(255,255,255,0.05); border-radius:2px; margin-top:10px; overflow:hidden;">
-                <div style="height:100%; background:var(--success); width:${data.global.successRate}%; box-shadow: 0 0 10px var(--success);"></div>
-            </div>
+            <div class="kpi-label">🔷 Balance Spot ETH</div>
+            <div class="kpi-value" style="color:#a78bfa">${data.spot.balanceEth}</div>
+            <div class="kpi-sub">ETH en posición</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">Volumen de Operaciones</div>
-            <div class="kpi-value">${data.global.totalTrades}</div>
-            <div class="kpi-sub">${data.futuros.totalTrades} Futuros | ${data.spot.totalTrades} Spot</div>
+            <div class="kpi-label">⚡ Operaciones Ejecutadas</div>
+            <div class="kpi-value">${data.global.executedTrades}</div>
+            <div class="kpi-sub">${data.futuros.executedTrades} Futuros | ${data.spot.totalTrades} Spot</div>
         </div>
     </div>
 
@@ -383,7 +379,8 @@ async function getDashboardData(period, userId) {
     const tfDec = tf.replace('timestamp_apertura', 'timestamp');
 
     // Stats Calculations
-    const [fStats] = await db.execute(`SELECT COUNT(*) as total, SUM(resultado='WIN') as win, SUM(ganancia_perdida) as pnl FROM bot_trades WHERE timestamp_cierre IS NOT NULL AND ${tfCierre}`);
+    const [fStats] = await db.execute(`SELECT COUNT(*) as total, SUM(resultado='WIN') as win, SUM(resultado='WIN' OR resultado='LOSS') as executed, SUM(ganancia_perdida) as pnl FROM bot_trades WHERE ${tfCierre.replace(new RegExp('timestamp_cierre','g'), 'timestamp_apertura')}`);
+    const [fExecuted] = await db.execute(`SELECT COUNT(*) as executed FROM bot_trades WHERE timestamp_cierre IS NOT NULL AND ${tfCierre}`);
     const [sStats] = await db.execute(`SELECT COUNT(*) as total FROM spot_trades WHERE ${tf}`);
     
     // Recent Combined Activity
@@ -408,20 +405,24 @@ async function getDashboardData(period, userId) {
     // Performance List
     const [dailyRows] = await db.execute(`SELECT DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha, SUM(ganancia_perdida) as pnl, COUNT(*) as total FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL GROUP BY fecha ORDER BY fecha DESC LIMIT 10`, [userId]);
 
-    // Estimated Value Calculation
-    const ethPrice = 2550; // Dynamic estimation or static for UI
-    const spotVal = parseFloat(balSpot.usdt) + (parseFloat(balSpot.eth) * ethPrice);
+    const executedFuturos = fExecuted[0].executed || 0;
+    const executedSpot   = sStats[0].total || 0;
 
     return {
         userId: user.id, userName: user.nombre, userRole: user.role,
         global: {
-            totalBalance: (parseFloat(balFut) + spotVal).toFixed(2),
-            totalPnL: parseFloat(fStats[0].pnl || 0).toFixed(2),
-            totalTrades: (fStats[0].total || 0) + (sStats[0].total || 0),
-            successRate: fStats[0].total > 0 ? Math.round((fStats[0].win / fStats[0].total) * 100) : 0
+            executedTrades: executedFuturos + executedSpot
         },
-        futuros: { totalTrades: fStats[0].total || 0 },
-        spot: { balanceEth: parseFloat(balSpot.eth).toFixed(6), estimatedValue: (parseFloat(balSpot.eth) * ethPrice).toFixed(2), totalTrades: sStats[0].total || 0 },
+        futuros: {
+            balance: parseFloat(balFut).toFixed(2),
+            totalTrades: fStats[0].total || 0,
+            executedTrades: executedFuturos
+        },
+        spot: {
+            balanceUsdt: parseFloat(balSpot.usdt).toFixed(2),
+            balanceEth:  parseFloat(balSpot.eth).toFixed(6),
+            totalTrades: executedSpot
+        },
         trades: allTrades,
         ai: (await db.execute(`SELECT * FROM bot_decisions WHERE ${tfDec} ORDER BY id DESC LIMIT 1`))[0][0] ? {
             ... (await db.execute(`SELECT * FROM bot_decisions WHERE ${tfDec} ORDER BY id DESC LIMIT 1`))[0][0],
