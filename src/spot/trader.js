@@ -116,6 +116,34 @@ async function executeBuy(decision, precioActual) {
 
         logger.info(`[SPOT] Orden BUY ejecutada exitosamente.`);
 
+        // --- GATILLOS AUTOMÁTICOS (Take Profit en Spot) ---
+        if (decision.precio_objetivo) {
+            try {
+                // Esperamos 2 segundos para asegurar acreditación y cómputo de comisiones
+                await new Promise(r => setTimeout(r, 2000));
+                
+                const currentBal = await getSpotBalance();
+                // Dejamos un margen del 0.2% fuera (por si BingX cobra fees en la misma moneda)
+                // y redondeamos a 4 decimales para evitar el error de "PRECISION_INVALID"
+                const ethDisponible = Math.floor((currentBal.eth * 0.998) * 10000) / 10000;
+
+                if (ethDisponible > 0.001) {
+                    logger.info(`[SPOT] Colocando gatillo LIMIT (Take Profit) a ${decision.precio_objetivo} USDT para vender ${ethDisponible} ETH.`);
+                    await placeSpotOrder({
+                        symbol,
+                        side: 'SELL',
+                        type: 'LIMIT',
+                        price: decision.precio_objetivo,
+                        quantity: ethDisponible
+                    });
+                    logger.info(`[SPOT] Gatillo TP colocado con luz verde.`);
+                }
+            } catch(e) {
+                logger.error('[SPOT] Falló al automatizar el gatillo TP:', e.message);
+            }
+        }
+        // --------------------------------------------------
+
         await logger.logTradeSpot({
             accion: 'BUY',
             precio_entrada: precioActual,
