@@ -49,7 +49,12 @@ async function getBalance() {
 async function getPositions(symbol) {
     try {
         const res = await request('GET', '/openApi/swap/v2/user/positions', { symbol });
-        const positions = (res.data || []).filter(p => parseFloat(p.positionAmt) !== 0);
+        let rawPositions = [];
+        if (res && res.data) {
+            if (Array.isArray(res.data)) rawPositions = res.data;
+            else if (res.data.positions && Array.isArray(res.data.positions)) rawPositions = res.data.positions;
+        }
+        const positions = rawPositions.filter(p => p && parseFloat(p.positionAmt || 0) !== 0);
 
         // Fetch duration for Time-Stop analysis
         const mode = process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO';
@@ -358,14 +363,27 @@ async function checkAndCloseTrades() {
         if (process.env.MODO_REAL === 'true') {
             try {
                 const resOrders = await request('GET', '/openApi/swap/v2/trade/allFillOrders', { symbol, limit: 100 });
-                recentOrders = resOrders.data || [];
-            } catch(e) {}
+                if (resOrders && resOrders.data) {
+                    if (Array.isArray(resOrders.data)) {
+                        recentOrders = resOrders.data;
+                    } else if (resOrders.data.orders && Array.isArray(resOrders.data.orders)) {
+                        recentOrders = resOrders.data.orders;
+                    } else if (resOrders.data.list && Array.isArray(resOrders.data.list)) {
+                        recentOrders = resOrders.data.list;
+                    }
+                }
+            } catch(e) {
+                logger.error('Error obteniendo allFillOrders de BingX:', e.message);
+            }
         }
+
+        // Asegurar que recentOrders sea un array antes del loop
+        if (!Array.isArray(recentOrders)) recentOrders = [];
 
         for (const trade of openTrades) {
             if (process.env.MODO_REAL !== 'true') continue;
 
-            const isOpen = activePositions.some(p => p.positionSide === trade.accion);
+            const isOpen = Array.isArray(activePositions) && activePositions.some(p => p && p.positionSide === trade.accion);
             if (isOpen) continue;
 
             logger.info(`Verificando cierre de trade ID ${trade.id} (${trade.accion})...`);
