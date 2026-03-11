@@ -20,7 +20,11 @@ async function request(method, path, params = {}) {
     const url = `${BASE_URL}${path}?${queryString}`;
     try {
         const response = await axios({ method, url, headers: { 'X-BX-APIKEY': API_KEY } });
-        return response.data;
+        const res = response.data;
+        if (res && res.code !== 0) {
+            throw new Error(`BingX API Error [${path}]: ${res.msg} (Code: ${res.code})`);
+        }
+        return res;
     } catch (error) {
         throw error;
     }
@@ -247,21 +251,24 @@ async function cancelOpenOrders() {
         const isReal = process.env.MODO_REAL === 'true';
 
         if (!isReal) {
-            logger.info('[SIMULADO] Cancelando ordenes abiertas (trailing stops)');
+            logger.info('[SIMULADO] Cancelando ordenes abiertas');
             return;
         }
 
-        const params = { symbol, timestamp: Date.now() };
-        const signature = getSignature(params);
-        const queryString = Object.keys(params)
-            .sort()
-            .map(key => `${key}=${encodeURIComponent(params[key])}`)
-            .join('&') + `&signature=${signature}`;
+        // Limpieza de todas las ordenes (normales y trigger)
+        await request('DELETE', '/openApi/swap/v2/trade/allOpenOrders', { symbol });
+        
+        // Verificacion adicional
+        const openRes = await request('GET', '/openApi/swap/v2/trade/openOrders', { symbol });
+        if (openRes && openRes.data && openRes.data.length > 0) {
+            for (const o of openRes.data) {
+                try {
+                    await request('DELETE', '/openApi/swap/v2/trade/order', { symbol, orderId: o.orderId });
+                } catch (err) { /* ignore */ }
+            }
+        }
 
-        const url = `${BASE_URL}/openApi/swap/v2/trade/allOpenOrders?${queryString}`;
-        await axios({ method: 'DELETE', url, headers: { 'X-BX-APIKEY': API_KEY } });
-
-        logger.info('Ordenes abiertas canceladas (trailing stops).');
+        logger.info('Ordenes abiertas canceladas (incluyendo triggers).');
     } catch (error) {
         logger.error('Error cancelando ordenes abiertas', error.message);
     }
