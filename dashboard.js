@@ -252,33 +252,59 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             ` : ''}
 
             <div class="card">
-                <div class="card-header">
-                    <div class="card-title">🕒 Historial de Transacciones</div>
+            <!-- TABLAS SEPARADAS 2 COL -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+
+                <!-- TABLA FUTUROS -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title" style="color:var(--secondary);">BTC Futuros</div>
+                        <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">${data.futuros.totalTrades} ops</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>Operación</th><th>Precio</th><th>Margen</th><th>Hora</th></tr>
+                            </thead>
+                            <tbody>
+                                ${data.tradesFuturos.length > 0 ? data.tradesFuturos.map(t => `
+                                    <tr>
+                                        <td><span class="badge ${t.accion === 'LONG' ? 'b-long' : 'b-short'}">${t.accion}</span></td>
+                                        <td><b>$${t.precio}</b></td>
+                                        <td>${t.detalle}</td>
+                                        <td style="color:var(--text-dim); font-size:0.7rem;">${t.hora}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-dim);">Sin operaciones</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Bot/Módulo</th>
-                                <th>Operación</th>
-                                <th>P. Entrada</th>
-                                <th>Monto</th>
-                                <th>Timestamp</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.trades.length > 0 ? data.trades.map(t => `
-                                <tr>
-                                    <td><span style="color:var(--text-dim); font-weight:700; font-size:0.75rem;">${t.bot}</span></td>
-                                    <td><span class="badge ${t.accion === 'LONG' || t.accion === 'BUY' ? 'b-long' : 'b-short'}">${t.accion}</span></td>
-                                    <td><b>$${t.precio}</b></td>
-                                    <td>${t.detalle}</td>
-                                    <td style="color:var(--text-dim); font-size:0.7rem;">${t.hora}</td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="5" style="text-align:center; padding:3rem; color:var(--text-dim);">No se registraron movimientos en este periodo.</td></tr>'}
-                        </tbody>
-                    </table>
+
+                <!-- TABLA SPOT -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title" style="color:var(--success);">ETH Spot</div>
+                        <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">${data.spot.totalTrades} ops</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>Operación</th><th>Precio</th><th>Monto USDT</th><th>Hora</th></tr>
+                            </thead>
+                            <tbody>
+                                ${data.tradesSpot.length > 0 ? data.tradesSpot.map(t => `
+                                    <tr>
+                                        <td><span class="badge ${t.accion === 'BUY' ? 'b-long' : 'b-short'}">${t.accion}</span></td>
+                                        <td><b>$${t.precio}</b></td>
+                                        <td>${t.detalle}</td>
+                                        <td style="color:var(--text-dim); font-size:0.7rem;">${t.hora}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-dim);">Sin operaciones</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
             </div>
         </div>
 
@@ -453,6 +479,8 @@ async function getDashboardData(period, userId) {
             totalTrades: executedSpot
         },
         trades: allTrades,
+        tradesFuturos: fTrades.map(t => ({ ...t, hora: fmt(t.hora), precio: parseFloat(t.precio).toFixed(2), detalle: parseFloat(t.capital_usado || t.detalle || 0) > 0 ? `$${parseFloat(t.capital_usado || t.detalle || 0).toFixed(2)} USDT` : '--' })),
+        tradesSpot: sTrades.map(t => ({ ...t, hora: fmt(t.hora), precio: parseFloat(t.precio).toFixed(2), detalle: parseFloat(t.capital_usdt || t.detalle || 0) > 0 ? `$${parseFloat(t.capital_usdt || t.detalle || 0).toFixed(2)} USDT` : '--' })),
         aiFuturos: lastAIFut ? {
             accion:    lastAIFut.accion,
             razon:     lastAIFut.razon,
