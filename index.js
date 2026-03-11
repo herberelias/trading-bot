@@ -7,17 +7,23 @@ const ai = require('./src/ai');
 const risk = require('./src/risk');
 const trader = require('./src/trader');
 const context = require('./src/context');
+const db = require('./src/db'); // New dependency
 
 async function runBot() {
     try {
         const par = process.env.PAR;
         logger.info(`========================================`);
-        logger.info(`Iniciando ciclo: ${par} | ${new Date().toISOString()}`);
+        logger.info(`Iniciando ciclo multiusuario: ${par} | ${new Date().toISOString()}`);
 
-        // Sincronizar trades cerrados
-        await trader.checkAndCloseTrades();
+        // 0. Obtener usuarios activos
+        const [usuarios] = await db.execute('SELECT * FROM users WHERE activo = 1');
+        if (usuarios.length === 0) {
+            logger.warn('No hay usuarios activos en la BD. Saltando ciclo.');
+            return;
+        }
+        logger.info(`Usuarios a procesar: ${usuarios.length}`);
 
-        // 1. Obtener velas de mercado (3 timeframes en paralelo)
+        // 1. Obtener velas de mercado (Una vez para todos)
         const [candles15m, candles1h, candles4h] = await Promise.all([
             market.getCandles15m(par),
             market.getCandles1h(par),
@@ -29,7 +35,7 @@ async function runBot() {
             return;
         }
 
-        // 2. Calcular indicadores tecnicos
+        // 2. Calcular indicadores tecnicos (Una vez para todos)
         const indicators15m = indicators.calcularIndicadores(candles15m);
         const indicators1h = (candles1h && candles1h.length >= 50)
             ? indicators.calcularIndicadores(candles1h)
@@ -40,130 +46,130 @@ async function runBot() {
 
         const precioActual = indicators15m.currentPrice;
 
-        // 3. Recolectar todo el contexto en paralelo
-        const [
-            posicionesAbiertas,
-            balance,
-            historialHoy,
-            fearGreed,
-            fundingRate,
-            racha
-        ] = await Promise.all([
-            trader.getPositions(par),
-            trader.getBalance(),
-            trader.getTodayTrades(),
+        // 3. Obtener contexto global (Fear & Greed, Funding Rate)
+        const [fearGreed, fundingRate] = await Promise.all([
             context.getFearAndGreed(),
-            market.getFundingRate(par),
-            context.getRachaActual()
+            market.getFundingRate(par)
         ]);
 
-        const openTradeDurations = await trader.getOpenTradeDuration();
-        if (openTradeDurations && posicionesAbiertas.length > 0) {
-            posicionesAbiertas.forEach(p => {
-                if (openTradeDurations[p.positionSide]) p.horas_abierta = openTradeDurations[p.positionSide];
-            });
-        }
-
-        const isPositionOpen = posicionesAbiertas.length > 0;
-
-        // 4. Calcular soporte/resistencia con velas 1h
         const soportesResistencias = candles1h && candles1h.length > 0
             ? context.calcularSoportesResistencias(candles1h, 50)
             : null;
-
-        // 5. Obtener sesion de mercado actual
         const sesionMercado = context.getSesionMercado();
 
-        logger.info(`Balance: ${balance} USDT | Posiciones: ${posicionesAbiertas.length} | Precio: ${precioActual}`);
-        logger.info(`Sesion: ${sesionMercado.sesion} | Fear&Greed: ${fearGreed ? fearGreed.value : 'N/A'} | Funding: ${fundingRate ? fundingRate.fundingRate : 'N/A'}%`);
+        logger.info(`Precio: ${precioActual} | Fear: ${fearGreed?.value} | Funding: ${fundingRate?.fundingRate}%`);
 
-        // 6. Consultar IA con contexto completo
-        const decision = await ai.consultarGemini(
-            indicators15m,
-            indicators1h,
-            indicators4h,
-            precioActual,
-            posicionesAbiertas,
-            balance,
-            historialHoy,
-            fearGreed,
-            soportesResistencias,
-            sesionMercado,
-            fundingRate,
-            racha
-        );
+        // --- BUCLE POR USUARIO ---
+        for (const user of usuarios) {
+            try {
+                logger.info(`----------------------------------------`);
+                logger.info(`Procesando usuario: ${user.nombre} (ID: ${user.id})`);
 
-        if (!decision) {
-            logger.error('IA no devolvio decision valida. Abortando.');
-            return;
-        }
+                // Sincronizar trades cerrados
+                await trader.checkAndCloseTrades(user);
 
-        logger.info(`IA decide: ${decision.accion} | Confianza: ${decision.confianza} | Riesgo: ${decision.riesgo_pct}%`);
-        logger.info(`Razon: ${decision.razon}`);
-        if (decision.accion === 'MOVE_SL') {
-            logger.info(`Nuevo SL: ${decision.nuevo_stop_loss}`);
-        }
+                // Obtener contexto especifico del usuario
+                const [
+                    posicionesAbiertas,
+                    balance,
+                    historialHoy,
+                    racha
+                ] = await Promise.all([
+                    trader.getPositions(par, user),
+                    trader.getBalance(user),
+                    trader.getTodayTrades(user),
+                    context.getRachaActual(user)
+                ]);
 
-        // 7. Validar permisos de riesgo
-        const riskResult = await risk.checkRiskPermissions(decision, isPositionOpen);
+                const isPositionOpen = posicionesAbiertas.length > 0;
+                logger.info(`[${user.nombre}] Balance: ${balance} USDT | Posiciones: ${posicionesAbiertas.length}`);
 
-        // 8. Guardar decision en base de datos
-        const decisionLog = {
-            rsi: indicators15m.rsi,
-            ema20: indicators15m.ema20,
-            ema50: indicators15m.ema50,
-            macd: indicators15m.macd,
-            signal_macd: indicators15m.signal,
-            histogram: indicators15m.histogram,
-            volumenPct: indicators15m.volumeVsAvg,
-            precioActual,
-            accion: decision.accion,
-            confianza: decision.confianza,
-            razon: decision.razon,
-            stop_loss: decision.stop_loss || decision.nuevo_stop_loss || null,
-            take_profit: decision.take_profit || null,
-            ejecutado: riskResult.canTrade,
-            motivo_no_ejecutado: riskResult.reason
-        };
+                // 4. Consultar IA (Cada usuario podria tener un contexto distinto de trades previos)
+                const decision = await ai.consultarGemini(
+                    indicators15m,
+                    indicators1h,
+                    indicators4h,
+                    precioActual,
+                    posicionesAbiertas,
+                    balance,
+                    historialHoy,
+                    fearGreed,
+                    soportesResistencias,
+                    sesionMercado,
+                    fundingRate,
+                    racha
+                );
 
-        await logger.logDecision(decisionLog);
-
-        // 9. Ejecutar accion
-        if (riskResult.canTrade) {
-            if (decision.accion === 'CLOSE') {
-                logger.info('Ejecutando CLOSE...');
-                await trader.cancelOpenOrders();
-                await trader.closeTrade(precioActual);
-
-            } else if (decision.accion === 'MOVE_SL') {
-                logger.info(`Ejecutando MOVE_SL a ${decision.nuevo_stop_loss}...`);
-                await trader.cancelOpenOrders();
-                await trader.updateStopLoss(decision.nuevo_stop_loss, precioActual);
-                if (decision.trailing_pct) {
-                    await new Promise(r => setTimeout(r, 1500));
-                    const pos = posicionesAbiertas.find(p => p.positionSide === "LONG" || p.positionSide === "SHORT");
-                    if (pos) await trader.placeTrailingStop(pos.positionSide, decision.trailing_pct);
+                if (!decision) {
+                    logger.error(`[${user.nombre}] IA no devolvio decision valida.`);
+                    continue;
                 }
 
-            } else if (decision.accion === 'LONG' || decision.accion === 'SHORT') {
-                logger.info(`Ejecutando ${decision.accion}...`);
-                await trader.executeTrade(decision, precioActual);
-                const trailingPct = parseFloat(decision.trailing_pct) || 1.0;
-                logger.info(`Colocando Trailing Stop: ${trailingPct}%...`);
-                await new Promise(r => setTimeout(r, 2000));
-                await trader.placeTrailingStop(decision.accion, trailingPct);
+                logger.info(`[${user.nombre}] IA: ${decision.accion} | Confianza: ${decision.confianza}%`);
+
+                // 5. Validar permisos de riesgo (Usando config de BD del usuario)
+                const riskResult = await risk.checkRiskPermissions(decision, isPositionOpen, user);
+
+                // 6. Guardar decision
+                const decisionLog = {
+                    user_id: user.id,
+                    rsi: indicators15m.rsi,
+                    ema20: indicators15m.ema20,
+                    ema50: indicators15m.ema50,
+                    macd: indicators15m.macd,
+                    signal_macd: indicators15m.signal,
+                    histogram: indicators15m.histogram,
+                    volumenPct: indicators15m.volumeVsAvg,
+                    precioActual,
+                    accion: decision.accion,
+                    confianza: decision.confianza,
+                    razon: decision.razon,
+                    stop_loss: decision.stop_loss || decision.nuevo_stop_loss || null,
+                    take_profit: decision.take_profit || null,
+                    ejecutado: riskResult.canTrade,
+                    motivo_no_ejecutado: riskResult.reason
+                };
+                await logger.logDecision(decisionLog);
+
+                // 7. Ejecutar accion
+                if (riskResult.canTrade) {
+                    if (decision.accion === 'CLOSE') {
+                        logger.info(`[${user.nombre}] Ejecutando CLOSE...`);
+                        await trader.cancelOpenOrders(user);
+                        await trader.closeTrade(precioActual, user);
+                    } else if (decision.accion === 'MOVE_SL') {
+                        logger.info(`[${user.nombre}] Ejecutando MOVE_SL a ${decision.nuevo_stop_loss}...`);
+                        await trader.cancelOpenOrders(user);
+                        await trader.updateStopLoss(decision.nuevo_stop_loss, precioActual, user);
+                        if (decision.trailing_pct) {
+                            await new Promise(r => setTimeout(r, 1500));
+                            const pos = posicionesAbiertas.find(p => p.positionSide === "LONG" || p.positionSide === "SHORT");
+                            if (pos) await trader.placeTrailingStop(pos.positionSide, decision.trailing_pct, user);
+                        }
+                    } else if (decision.accion === 'LONG' || decision.accion === 'SHORT') {
+                        logger.info(`[${user.nombre}] Ejecutando ${decision.accion}...`);
+                        await trader.executeTrade(decision, precioActual, user);
+                        const trailingPct = parseFloat(decision.trailing_pct) || 1.0;
+                        logger.info(`[${user.nombre}] Colocando Trailing Stop: ${trailingPct}%...`);
+                        await new Promise(r => setTimeout(r, 2000));
+                        await trader.placeTrailingStop(decision.accion, trailingPct, user);
+                    }
+                }
+
+            } catch (uErr) {
+                logger.error(`Error procesando usuario ${user.nombre}:`, uErr);
             }
         }
 
-        logger.info(`Ciclo completado.`);
         logger.info(`========================================`);
+        logger.info(`Ciclo completado.`);
 
     } catch (error) {
         logger.error('Error critico en ciclo del bot', error);
     }
 }
 
-logger.info('Trading Bot v4.0 — Contexto completo para IA');
+logger.info('Trading Bot v5.0 — Multicliente IA');
 logger.info(`Par: ${process.env.PAR} | Modo: ${process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO'}`);
 
 cron.schedule('*/15 * * * *', () => { runBot(); });
