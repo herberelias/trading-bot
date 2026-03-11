@@ -204,9 +204,8 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">📉 Rendimiento Acumulado</div>
-                    <div style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">Últimas 50 operaciones detectadas</div>
                 </div>
-                <div style="height:320px; margin-top:10px;"><canvas id="mainChart"></canvas></div>
+                <div style="height:350px; margin-top:10px;"><canvas id="mainChart"></canvas></div>
             </div>
 
             <div class="card">
@@ -326,23 +325,27 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         data: {
             labels: ${JSON.stringify(data.chart.labels)},
             datasets: [{
-                label: 'Profitability',
+                label: 'PnL',
                 data: ${JSON.stringify(data.chart.data)},
                 borderColor: '#3b82f6',
-                borderWidth: 3,
+                borderWidth: 4,
                 backgroundColor: gradient,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 2,
-                pointHoverRadius: 6,
+                pointRadius: 0,
+                pointHoverRadius: 0,
                 pointBackgroundColor: '#fff'
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+            interaction: { intersect: false },
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { enabled: false } 
+            },
             scales: {
-                y: { grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, ticks: { color: '#64748b', font: { weight: '600', size: 10 } } },
+                y: { grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, ticks: { color: '#64748b', font: { weight: '600', size: 10 } } },
                 x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } }
             }
         }
