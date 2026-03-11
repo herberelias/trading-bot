@@ -408,6 +408,12 @@ async function getDashboardData(period, userId) {
     const executedFuturos = fExecuted[0].executed || 0;
     const executedSpot   = sStats[0].total || 0;
 
+    // AI: siempre el ultimo mensaje sin importar el periodo
+    const [aiRows] = await db.execute(
+        `SELECT * FROM bot_decisions WHERE user_id = ? ORDER BY id DESC LIMIT 1`, [userId]
+    );
+    const lastAI = aiRows[0] || null;
+
     return {
         userId: user.id, userName: user.nombre, userRole: user.role,
         global: {
@@ -424,10 +430,12 @@ async function getDashboardData(period, userId) {
             totalTrades: executedSpot
         },
         trades: allTrades,
-        ai: (await db.execute(`SELECT * FROM bot_decisions WHERE ${tfDec} ORDER BY id DESC LIMIT 1`))[0][0] ? {
-            ... (await db.execute(`SELECT * FROM bot_decisions WHERE ${tfDec} ORDER BY id DESC LIMIT 1`))[0][0],
-            hace: Math.round((Date.now() - new Date((await db.execute(`SELECT * FROM bot_decisions WHERE ${tfDec} ORDER BY id DESC LIMIT 1`))[0][0].timestamp))/60000) + ' min',
-            rsi: (await db.execute(`SELECT * FROM bot_decisions WHERE ${tfDec} ORDER BY id DESC LIMIT 1`))[0][0].rsi || '--'
+        ai: lastAI ? {
+            accion:    lastAI.accion,
+            razon:     lastAI.razon,
+            confianza: lastAI.confianza,
+            rsi:       lastAI.rsi || '--',
+            hace:      Math.round((Date.now() - new Date(lastAI.timestamp)) / 60000) + ' min'
         } : null,
         chart,
         daily: dailyRows.map(r=>({ fecha: r.fecha, pnl: parseFloat(r.pnl).toFixed(2), total: r.total }))
