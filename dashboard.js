@@ -203,7 +203,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">📉 Rendimiento Acumulado</div>
+                    <div class="card-title">Rendimiento Acumulado</div>
                 </div>
                 <div style="height:350px; margin-top:10px;"><canvas id="mainChart"></canvas></div>
             </div>
@@ -345,8 +345,8 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                 tooltip: { enabled: false } 
             },
             scales: {
-                y: { grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, ticks: { color: '#64748b', font: { weight: '600', size: 10 } } },
-                x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } }
+                y: { display: false, grid: { display: false } },
+                x: { display: false, grid: { display: false } }
             }
         }
     });
