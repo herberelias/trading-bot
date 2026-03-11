@@ -1025,7 +1025,10 @@ async function getDashboardData(period = 'today') {
             FROM spot_trades
         `);
 
-        // WIN RATE REAL - CON MÉTRICAS FINANCIERAS
+        // Filtro para trades cerrados
+        const dfCierre = dfFut.replace(/timestamp_apertura/g, 'timestamp_cierre');
+
+        // WIN RATE REAL - CON MÉTRICAS FINANCIERAS (Filtrado por Rango)
         const [winData] = await db.execute(`
             SELECT
                 COUNT(*) as total,
@@ -1036,10 +1039,10 @@ async function getDashboardData(period = 'today') {
                 SUM(CASE WHEN ganancia_perdida < 0 THEN ganancia_perdida ELSE 0 END) as perdida_bruta,
                 SUM(comision) as total_comisiones
             FROM bot_trades
-            WHERE timestamp_cierre IS NOT NULL
+            WHERE timestamp_cierre IS NOT NULL AND ${dfCierre}
         `);
 
-        // Datos diarios financieros
+        // Datos diarios financieros (Filtrado por Rango)
         const [dailyFinanciero] = await db.execute(`
             SELECT 
                 DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha,
@@ -1049,10 +1052,9 @@ async function getDashboardData(period = 'today') {
                 SUM(resultado = 'WIN') as ganados_dia,
                 SUM(resultado = 'LOSS') as perdidos_dia
             FROM bot_trades 
-            WHERE timestamp_cierre IS NOT NULL
+            WHERE timestamp_cierre IS NOT NULL AND ${dfCierre}
             GROUP BY fecha 
             ORDER BY fecha DESC
-            LIMIT 14
         `);
 
         const winRateReal = winData[0].total > 0
