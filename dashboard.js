@@ -718,6 +718,29 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
       </div>
     </div>
 
+    <div class="section-label">Gráficas de Rendimiento</div>
+    <div class="card mb12">
+      <div class="card-title">Crecimiento de PnL Acumulado (USDT)</div>
+      <div class="chart-wrap" style="height: 300px;">
+        <canvas id="pnlChart"></canvas>
+      </div>
+    </div>
+
+    <div class="grid-2 mb12">
+      <div class="card">
+        <div class="card-title">Distribución de Direcciones</div>
+        <div class="chart-wrap" style="height: 250px;">
+          <canvas id="accionesChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Win vs Loss</div>
+        <div class="chart-wrap" style="height: 250px;">
+          <canvas id="resultadosChart"></canvas>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- REFRESH -->
@@ -744,6 +767,66 @@ setInterval(() => {
   if (el) el.textContent = secs;
   if (secs <= 0) location.reload();
 }, 1000);
+
+// --- CHARTS INITIALIZATION ---
+// Inject data safely
+const chartData = ${JSON.stringify(data.charts)};
+
+if (chartData && chartData.pnl && chartData.pnl.length > 0) {
+    new Chart(document.getElementById('pnlChart'), {
+        type: 'line',
+        data: {
+            labels: chartData.pnl.map(d => d.x),
+            datasets: [{
+                label: 'PnL Acumulado',
+                data: chartData.pnl.map(d => d.y),
+                borderColor: '#4f46e5',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#4f46e5'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: '#e2e8f0' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+if (chartData && chartData.acciones) {
+    new Chart(document.getElementById('accionesChart'), {
+        type: 'doughnut',
+        data: {
+            labels: chartData.acciones.map(d => d.label),
+            datasets: [{
+                data: chartData.acciones.map(d => d.value),
+                backgroundColor: ['#4f46e5', '#ef4444', '#f59e0b', '#10b981', '#3b82f6']
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+if (chartData && chartData.resultados) {
+    new Chart(document.getElementById('resultadosChart'), {
+        type: 'pie',
+        data: {
+            labels: chartData.resultados.map(d => d.label),
+            datasets: [{
+                data: chartData.resultados.map(d => d.value),
+                backgroundColor: ['#10b981', '#ef4444']
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
 </script>
 
 </body>
@@ -896,6 +979,27 @@ async function getDashboardData(period = 'today') {
             ? ((winData[0].ganados / winData[0].total) * 100).toFixed(0)
             : 0;
 
+        // --- DATOS PARA GRAFICAS ---
+        const [pnlHist] = await db.execute(`
+            SELECT DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha, SUM(ganancia_perdida) as pnl
+            FROM bot_trades WHERE timestamp_cierre IS NOT NULL
+            GROUP BY DATE(timestamp_cierre) ORDER BY fecha ASC
+        `);
+
+        let pnlAcumulado = 0;
+        const chartDataPnl = pnlHist.map(h => {
+            pnlAcumulado += parseFloat(h.pnl || 0);
+            return { x: h.fecha, y: parseFloat(pnlAcumulado.toFixed(2)) };
+        });
+
+        const [distribucionAcciones] = await db.execute(`
+            SELECT direccion as label, COUNT(*) as value FROM bot_trades GROUP BY direccion
+        `);
+
+        const [distribucionResultados] = await db.execute(`
+            SELECT resultado as label, COUNT(*) as value FROM bot_trades WHERE timestamp_cierre IS NOT NULL GROUP BY resultado
+        `);
+
         // Formatear trades
         tradesFuturos.forEach(t => t.timestamp_apertura = fmt(t.timestamp_apertura));
         tradesSpot.forEach(t => {
@@ -981,6 +1085,11 @@ async function getDashboardData(period = 'today') {
                 buys: parseInt(sgSpot[0].buys) || 0,
                 sells: parseInt(sgSpot[0].sells) || 0,
                 diasActivo: parseInt(sgSpot[0].diasActivo) || 0
+            },
+            charts: {
+                pnl: chartDataPnl,
+                acciones: distribucionAcciones,
+                resultados: distribucionResultados
             }
         };
     } catch (error) {
@@ -1026,12 +1135,14 @@ app.get('/logout', (req, res) => {
 });
 
 app.get('/', requireAuth, async (req, res) => {
-    const data = await getDashboardData();
-    res.send(dashboardHTML(data));
+    const period = req.query.period || 'today';
+    const data = await getDashboardData(period);
+    res.send(dashboardHTML(data, period));
 });
 
 app.get('/api/data', requireAuth, async (req, res) => {
-    const data = await getDashboardData();
+    const period = req.query.period || 'today';
+    const data = await getDashboardData(period);
     res.json(data);
 });
 
