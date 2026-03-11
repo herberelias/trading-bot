@@ -286,6 +286,43 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                         <div class="card-title" style="color:var(--success);">ETH Spot</div>
                         <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">${data.spot.totalTrades} ops</span>
                     </div>
+
+                    <!-- PNL RESUMEN SPOT -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.25rem;">
+                        <div style="background:rgba(0,0,0,0.25); border-radius:14px; padding:12px; border:1px solid var(--border);">
+                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; margin-bottom:4px;">TOTAL COMPRADO</div>
+                            <div style="font-weight:800; color:var(--danger);">-$${data.spotPnl.totalComprado}</div>
+                            <div style="font-size:0.65rem; color:var(--text-dim);">${data.spotPnl.numCompras} BUYs</div>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.25); border-radius:14px; padding:12px; border:1px solid var(--border);">
+                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; margin-bottom:4px;">TOTAL VENDIDO</div>
+                            <div style="font-weight:800; color:var(--success);">+$${data.spotPnl.totalVendido}</div>
+                            <div style="font-size:0.65rem; color:var(--text-dim);">${data.spotPnl.numVentas} SELLs</div>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.25); border-radius:14px; padding:12px; border:1px solid var(--border);">
+                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; margin-bottom:4px;">PNL REALIZADO</div>
+                            <div style="font-weight:800; color:${parseFloat(data.spotPnl.pnlRealizado) >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                                ${parseFloat(data.spotPnl.pnlRealizado) >= 0 ? '+' : ''}$${data.spotPnl.pnlRealizado}
+                            </div>
+                            <div style="font-size:0.65rem; color:var(--text-dim);">SELL − BUY</div>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.25); border-radius:14px; padding:12px; border:1px solid var(--border);">
+                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; margin-bottom:4px;">ETH EN CARTERA</div>
+                            <div style="font-weight:800; color:#a78bfa;">${data.spotPnl.ethActual} ETH</div>
+                            <div style="font-size:0.65rem; color:var(--text-dim);">≈ $${data.spotPnl.valorEthActual}</div>
+                        </div>
+                    </div>
+                    <!-- TOTAL NETO -->
+                    <div style="background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.08)); border:1px solid rgba(16,185,129,0.25); border-radius:14px; padding:14px 18px; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">PNL TOTAL (Realizado + ETH en cartera)</div>
+                            <div style="font-size:0.7rem; color:var(--text-dim);">Ventas + Valor ETH actual − Compras</div>
+                        </div>
+                        <div style="font-size:1.6rem; font-weight:900; color:${parseFloat(data.spotPnl.pnlTotal) >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                            ${parseFloat(data.spotPnl.pnlTotal) >= 0 ? '+' : ''}$${data.spotPnl.pnlTotal}
+                        </div>
+                    </div>
+
                     <div class="table-wrap">
                         <table>
                             <thead>
@@ -462,6 +499,33 @@ async function getDashboardData(period, userId) {
     const executedFuturos = fExecuted[0].executed || 0;
     const executedSpot   = sStats[0].total || 0;
 
+    // Spot PnL: algoritmo compra-venta
+    const [spotPnlRows] = await db.execute(`
+        SELECT 
+            SUM(CASE WHEN accion = 'BUY'  THEN capital_usdt ELSE 0 END) as total_comprado,
+            SUM(CASE WHEN accion = 'SELL' THEN capital_usdt ELSE 0 END) as total_vendido,
+            COUNT(CASE WHEN accion = 'BUY'  THEN 1 END) as num_compras,
+            COUNT(CASE WHEN accion = 'SELL' THEN 1 END) as num_ventas
+        FROM spot_trades WHERE user_id = ?`, [userId]);
+    const spRow = spotPnlRows[0] || {};
+    const ethPrecioEst = 2050; // precio referencia ETH/USDT
+    const totalComprado  = parseFloat(spRow.total_comprado  || 0);
+    const totalVendido   = parseFloat(spRow.total_vendido   || 0);
+    const ethActual      = parseFloat(balSpot.eth || 0);
+    const valorEthActual = ethActual * ethPrecioEst;
+    const pnlRealizado   = totalVendido - totalComprado;
+    const pnlTotal       = pnlRealizado + valorEthActual; // incluye ETH sin vender
+    const spotPnl = {
+        totalComprado:  totalComprado.toFixed(2),
+        totalVendido:   totalVendido.toFixed(2),
+        numCompras:     spRow.num_compras || 0,
+        numVentas:      spRow.num_ventas  || 0,
+        pnlRealizado:   pnlRealizado.toFixed(2),
+        valorEthActual: valorEthActual.toFixed(2),
+        pnlTotal:       pnlTotal.toFixed(2),
+        ethActual:      ethActual.toFixed(6)
+    };
+
     // AI Futuros: siempre la ultima decision
     const [aiRowsFut] = await db.execute(
         `SELECT * FROM bot_decisions ORDER BY id DESC LIMIT 1`
@@ -489,6 +553,7 @@ async function getDashboardData(period, userId) {
             balanceEth:  parseFloat(balSpot.eth).toFixed(6),
             totalTrades: executedSpot
         },
+        spotPnl,
         trades: allTrades,
         tradesFuturos,
         tradesSpot,
