@@ -1,4 +1,4 @@
-const { RSI, EMA, MACD, BollingerBands } = require('technicalindicators');
+const { RSI, EMA, MACD, BollingerBands, ATR } = require('technicalindicators');
 
 function calcularIndicadores(klines) {
     const sortedKlines = klines.sort((a, b) => a.time - b.time);
@@ -31,6 +31,14 @@ function calcularIndicadores(klines) {
         stdDev: 2
     });
 
+    // ATR (Average True Range) para volatilidad y trailing dinamico
+    const atrResult = ATR.calculate({
+        high: highs,
+        low: lows,
+        close: closes,
+        period: 14
+    });
+
     // Volumen vs promedio ultimos 20 periodos
     const recentVolumes = volumes.slice(-20);
     const avgVolume = recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length;
@@ -43,6 +51,7 @@ function calcularIndicadores(klines) {
     const latestEMA50 = ema50Result[ema50Result.length - 1];
     const latestMACD = macdResult[macdResult.length - 1];
     const latestBB = bbResult[bbResult.length - 1];
+    const latestATR = atrResult.length > 0 ? atrResult[atrResult.length - 1] : 0;
     const currentPrice = closes[closes.length - 1];
 
     // Posicion del precio dentro de las Bandas de Bollinger
@@ -72,7 +81,9 @@ function calcularIndicadores(klines) {
         bb_lower: latestBB.lower.toFixed(2),
         bb_position: bbPosition,
         bb_width: bbWidth,
-        bb_pct: bbPct
+        bb_pct: bbPct,
+        // Volatilidad Dinamica
+        atr: latestATR.toFixed(2)
     };
 }
 

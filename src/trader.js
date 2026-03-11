@@ -47,6 +47,10 @@ async function getPositions(symbol) {
         const res = await request('GET', '/openApi/swap/v2/user/positions', { symbol });
         const positions = (res.data || []).filter(p => parseFloat(p.positionAmt) !== 0);
 
+        // Fetch duration for Time-Stop analysis
+        const mode = process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO';
+        const [openTrades] = await db.execute("SELECT direccion, timestamp_apertura FROM bot_trades WHERE timestamp_cierre IS NULL AND modo = ?", [mode]);
+
         // Enriquecer con precio de liquidacion estimado si no viene en la respuesta
         return positions.map(p => {
             // BingX generalmente incluye liquidationPrice en la respuesta
@@ -463,4 +467,26 @@ async function executeTrade(decision, currentPrice) {
     }
 }
 
-module.exports = { getPositions, getBalance, getTodayTrades, executeTrade, closeTrade, updateStopLoss, cancelOpenOrders, placeTrailingStop, checkAndCloseTrades };
+async function getOpenTradeDuration() {
+    try {
+        const query = `
+            SELECT direccion AS accion, timestamp_apertura 
+            FROM bot_trades 
+            WHERE timestamp_cierre IS NULL AND modo = ?
+        `;
+        const modo_str = process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO';
+        const [rows] = await db.execute(query, [modo_str]);
+        if (rows.length === 0) return null;
+        
+        let durations = {};
+        for(let row of rows) {
+            const diffMs = Math.max(0, Date.now() - new Date(row.timestamp_apertura).getTime());
+            durations[row.accion] = (diffMs / 3600000).toFixed(1);
+        }
+        return durations;
+    } catch(e) {
+        return null;
+    }
+}
+
+module.exports = { getPositions, getBalance, getTodayTrades, executeTrade, closeTrade, updateStopLoss, cancelOpenOrders, placeTrailingStop, checkAndCloseTrades, getOpenTradeDuration };

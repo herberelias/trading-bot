@@ -39,6 +39,7 @@ async function consultarGemini(
                 `  PnL no realizado: ${p.unrealizedProfit} USDT (${pnlPct}%)`,
                 `  Margen usado: ${p.initialMargin} USDT`,
                 `  Precio de LIQUIDACION: ${p.liquidationPrice} USDT (a ${p.distanciaLiquidacion} del precio de entrada)`,
+                `  Tiempo abierta (horas): ${p.horas_abierta || 0}`,
             ].join('\n');
         }).join('\n---\n');
     }
@@ -95,6 +96,7 @@ TIMEFRAME 15M (señal de entrada):
 - MACD: ${indicators15m.macd} | Signal: ${indicators15m.signal} | Histogram: ${indicators15m.histogram}
 - Bollinger: precio en ${indicators15m.bb_position} | Superior: ${indicators15m.bb_upper} | Inferior: ${indicators15m.bb_lower} | Ancho: ${indicators15m.bb_width}%
 - Volumen vs promedio: ${indicators15m.volumeVsAvg}%
+- Volatilidad ATR (15m): ${indicators15m.atr || 'N/A'} USDT
 
 PRECIO ACTUAL BTC: ${precioActual} USDT
 
@@ -169,12 +171,13 @@ TAKE PROFIT:
 - Para LONG: en la resistencia mas cercana o siguiente nivel
 - Para SHORT: en el soporte mas cercano o siguiente nivel
 
-MOVE_SL (gestionar posicion ganadora):
+MOVE_SL (gestionar posicion ganadora o Cierre por Tiempo):
 - PnL > 0.8% → mover SL a breakeven (precio de entrada exacto)
 - PnL > 1.5% → mover SL a +0.5% sobre entrada (ganancia minima garantizada)
 - PnL > 3% → trailing agresivo, SL al precio actual menos 1%
 - PnL > 5% → trailing muy agresivo, SL al precio actual menos 0.5%
 - Si el precio se acerca mucho a liquidacion → CLOSE inmediato
+- CIERRE POR TIEMPO: Si la posicion lleva abierta mas de 4.0 horas y el PnL es inferior a 0.5% (estancado), ordena CLOSE para liberar margen.
 - NUNCA mover SL en direccion que aumente la perdida potencial
 
 RIESGO POR TRADE (riesgo_pct):
@@ -191,7 +194,7 @@ Al abrir LONG o SHORT debes decidir el trailing_pct.
 El trailing stop se coloca en BingX y protege la posicion segundo a segundo.
 Junto con el stop_loss inicial, el trailing reemplaza el SL dinamicamente.
 
-CRITERIOS para trailing_pct:
+CRITERIOS para trailing_pct (basado en ATR):
 - Señal muy fuerte, tendencia clara, alta conviccion → 0.5% a 0.8% (ajustado, protege mas)
 - Señal moderada, algo de volatilidad → 1.0% a 1.5% (balance entre proteccion y espacio)
 - Señal con dudas, alta volatilidad detectada → 2.0% a 3.0% (da mas espacio al precio)

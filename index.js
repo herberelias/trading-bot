@@ -54,6 +54,13 @@ async function runBot() {
             context.getRachaActual()
         ]);
 
+        const openTradeDurations = await trader.getOpenTradeDuration();
+        if (openTradeDurations && posicionesAbiertas.length > 0) {
+            posicionesAbiertas.forEach(p => {
+                if (openTradeDurations[p.positionSide]) p.horas_abierta = openTradeDurations[p.positionSide];
+            });
+        }
+
         const isPositionOpen = posicionesAbiertas.length > 0;
 
         // 4. Calcular soporte/resistencia con velas 1h
