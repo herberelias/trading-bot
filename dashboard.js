@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3004;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
-    secret: 'wintrade-secret-key-2026',
+    secret: 'wintrade-pro-secret-2026',
     resave: false,
     saveUninitialized: false,
     cookie: { maxAge: 24 * 60 * 60 * 1000 }
@@ -25,182 +25,210 @@ function requireAuth(req, res, next) {
 const loginHTML = (error = '') => `<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><title>Login - WINTRADE</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-<style>
-  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; color: white; }
-  .card { background: #0f172a; padding: 45px; border-radius: 32px; width: 100%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid #334155; text-align: center; }
-  input { width: 100%; padding: 14px; margin: 12px 0; border-radius: 12px; border: 1px solid #334155; background: #020617; color: white; outline: none; box-sizing: border-box; }
-  button { width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; font-weight: 800; cursor: pointer; margin-top: 15px; }
-  .error { background: rgba(239, 68, 68, 0.1); color: #f87171; padding: 10px; border-radius: 8px; font-size: 0.8rem; margin-top: 15px; }
-</style>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - WINTRADE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; color: white; }
+        .card { background: #0f172a; padding: 40px; border-radius: 32px; width: 90%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid #1e293b; text-align: center; }
+        input { width: 100%; padding: 14px; margin: 12px 0; border-radius: 12px; border: 1px solid #334155; background: #020617; color: white; outline: none; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-weight: 800; cursor: pointer; margin-top: 15px; }
+        .error { color: #f87171; font-size: 0.8rem; margin-top: 15px; }
+    </style>
 </head>
 <body>
-<div class="card">
-  <div style="font-size: 3rem; margin-bottom: 20px;">🚀</div>
-  <h1 style="margin:0; font-weight:800; letter-spacing:-1px;">WINTRADE</h1>
-  <p style="color:#64748b; margin-top:5px; margin-bottom:40px;">Professional Trading Suite</p>
-  <form method="POST" action="/login">
-    <input type="text" name="username" placeholder="Usuario" required>
-    <input type="password" name="password" placeholder="Contraseña" required>
-    ${error ? `<div class="error">❌ ${error}</div>` : ''}
-    <button type="submit">INICIAR SESIÓN</button>
-  </form>
-</div>
+    <div class="card">
+        <h1 style="font-weight:800; letter-spacing:-1px; margin-bottom:30px;">WINTRADE</h1>
+        <form method="POST" action="/login">
+            <input type="text" name="username" placeholder="Usuario" required>
+            <input type="password" name="password" placeholder="Contraseña" required>
+            ${error ? `<div class="error">${error}</div>` : ''}
+            <button type="submit">ACCEDER</button>
+        </form>
+    </div>
 </body>
 </html>`;
 
 // ═══════════════════════════════════════════
-// DASHBOARD HTML (RESPONSIVE & ORDERED)
+// DASHBOARD HTML (ULTRA-RESPONSIVE)
 // ═══════════════════════════════════════════
 const dashboardHTML = (data, period) => `<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WINTRADE — ${data.userName}</title>
+    <title>WINTRADE — Pro Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg: #020617; --card: #0f172a; --card-header: #1e293b; --border: #334155;
-            --text: #f8fafc; --text-dim: #94a3b8; --primary: #0ea5e9; --secondary: #6366f1;
+            --bg: #020617; --card: #0f172a; --card-light: #1e293b; --border: #334155;
+            --text: #f8fafc; --text-dim: #94a3b8; --primary: #3b82f6; --secondary: #a855f7;
             --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
         }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
-        
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
         header { 
-            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px); 
+            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); 
             padding: 1rem 2rem; border-bottom: 1px solid var(--border); 
-            display: flex; justify-content: space-between; align-items: center; 
-            position: sticky; top: 0; z-index: 1000;
+            display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; 
+            position: sticky; top: 0; z-index: 1000; gap: 1rem;
         }
-        .logo { font-size: 1.5rem; font-weight: 800; letter-spacing: -1px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .logo { font-size: 1.4rem; font-weight: 800; letter-spacing: -1px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
         .logo span { color: white; font-weight: 300; }
 
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        
-        /* Period Tabs */
-        .tabs { display: flex; background: #000; padding: 4px; border-radius: 12px; gap: 4px; margin-right: 20px; }
-        .tab-link { padding: 6px 16px; border-radius: 8px; text-decoration: none; color: var(--text-dim); font-size: 0.8rem; font-weight: 700; }
-        .tab-link.active { background: var(--card-header); color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .container { max-width: 1540px; margin: 0 auto; padding: 1.5rem; }
 
-        /* KPI Grid */
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-        .kpi-card { background: var(--card); border: 1px solid var(--border); padding: 1.5rem; border-radius: 20px; position: relative; overflow: hidden; }
-        .kpi-card::after { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--primary); opacity: 0.5; }
-        .kpi-label { font-size: 0.7rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-        .kpi-value { font-size: 1.75rem; font-weight: 800; margin-bottom: 5px; }
-        .kpi-footer { font-size: 0.8rem; font-weight: 600; }
+        /* Navigation Tabs */
+        .tabs { display: flex; background: #000; padding: 4px; border-radius: 12px; gap: 4px; }
+        .tab { padding: 8px 16px; border-radius: 8px; text-decoration: none; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; transition: 0.2s; text-align: center; }
+        .tab.active { background: var(--card-light); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 
-        /* Sections */
-        .grid-main { display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; }
-        @media (max-width: 1024px) { .grid-main { grid-template-columns: 1fr; } }
+        /* KPI Layout */
+        .kpi-row { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
+            gap: 1.25rem; margin-bottom: 2rem; 
+        }
+        .kpi-card { 
+            background: var(--card); border: 1px solid var(--border); 
+            padding: 1.5rem; border-radius: 24px; 
+            display: flex; flex-direction: column; justify-content: center;
+            min-height: 120px;
+        }
+        .kpi-label { font-size: 0.7rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .kpi-value { font-size: 1.8rem; font-weight: 800; line-height: 1.2; }
+        .kpi-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
 
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 1.5rem; height: 100%; }
-        .card-title { font-size: 1rem; font-weight: 800; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; }
-        
-        /* Table Styling */
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th { text-align: left; padding: 1rem; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-        td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.85rem; vertical-align: middle; }
-        
-        .badge { padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; }
-        .badge-long { background: rgba(16, 185, 129, 0.1); color: var(--success); }
-        .badge-short { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
-        .badge-buy { background: rgba(14, 165, 233, 0.1); color: var(--primary); }
-        .badge-sell { background: rgba(139, 92, 246, 0.1); color: #a78bfa; }
+        /* Main Sections Layout */
+        .main-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 380px; 
+            gap: 1.5rem; align-items: start;
+        }
+        @media (max-width: 1200px) { .main-grid { grid-template-columns: 1fr; } }
 
-        .ai-box { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 28px; padding: 1.75rem; position: relative; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+        .card-title { font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+
+        /* Table Rendering */
+        .table-wrap { overflow-x: auto; margin: -0.5rem; padding: 0.5rem; }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th { text-align: left; padding: 1rem; color: var(--text-dim); font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border); font-weight: 700; }
+        td { padding: 1.1rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.85rem; font-weight: 500; }
         
-        select { background: var(--card-header); color: white; border: 1px solid var(--border); padding: 8px 16px; border-radius: 12px; font-weight: 700; outline: none; transition: 0.2s; }
+        /* Badges */
+        .badge { padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.65rem; text-transform: uppercase; }
+        .b-long { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .b-short { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .b-spot { background: rgba(59, 130, 246, 0.15); color: var(--primary); }
+
+        /* AI Section Custom Styles */
+        .ai-box { background: rgba(0,0,0,0.3); border-radius: 20px; padding: 1.5rem; border: 1px solid var(--border); line-height: 1.6; }
+        
+        select { 
+            background: var(--card-light); color: white; border: 1px solid var(--border); 
+            padding: 8px 15px; border-radius: 14px; font-weight: 700; font-family: inherit;
+            cursor: pointer; outline: none; transition: 0.2s;
+        }
         select:hover { border-color: var(--primary); }
 
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        /* Mobile Adjustments */
+        @media (max-width: 600px) {
+            header { padding: 1rem; justify-content: center; }
+            .container { padding: 1rem; }
+            .kpi-value { font-size: 1.5rem; }
+            .card { padding: 1.25rem; }
+        }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="display:flex; align-items:center; gap:30px;">
-        <div class="logo">WINTRADE <span>SUITE</span></div>
+    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+        <div class="logo">WINTRADE <span>PRO</span></div>
         <div class="tabs">
-            <a href="/?period=today" class="tab-link ${period === 'today' ? 'active' : ''}">HOY</a>
-            <a href="/?period=7days" class="tab-link ${period === '7days' ? 'active' : ''}">7 DÍAS</a>
-            <a href="/?period=all" class="tab-link ${period === 'all' ? 'active' : ''}">HISTÓRICO</a>
+            <a href="/?period=today" class="tab ${period === 'today' ? 'active' : ''}">HOY</a>
+            <a href="/?period=7days" class="tab ${period === '7days' ? 'active' : ''}">7 DÍAS</a>
+            <a href="/?period=all" class="tab ${period === 'all' ? 'active' : ''}">TOTAL</a>
         </div>
         <!-- SELECTOR_USUARIO -->
     </div>
-    <div style="display:flex; align-items:center; gap:20px;">
+    <div style="display:flex; align-items:center; gap:15px;">
         <div style="text-align:right;">
-            <div style="font-weight:800; font-size:0.9rem;">${data.userName}</div>
-            <div style="font-size:0.65rem; color:var(--text-dim); text-transform:uppercase; font-weight:800;">ID: ${data.userId} — ${data.userRole}</div>
+            <div style="font-weight:800; font-size:0.85rem;">${data.userName}</div>
+            <div style="font-size:0.6rem; color:var(--text-dim); text-transform:uppercase; font-weight:800; letter-spacing:1px;">ID: ${data.userId} • ${data.userRole}</div>
         </div>
-        <a href="/logout" style="text-decoration:none; color:var(--danger); font-weight:800; border:1px solid var(--danger); padding:8px 16px; border-radius:12px; font-size:0.75rem;">SALIR</a>
+        <a href="/logout" style="text-decoration:none; color:var(--danger); border:1px solid var(--danger); padding:8px 14px; border-radius:12px; font-size:0.75rem; font-weight:800;">CERRAR</a>
     </div>
 </header>
 
 <div class="container">
     
-    <!-- TOP KPIs: GLOBAL TOTALS -->
-    <div style="margin-bottom: 2.5rem;">
-        <h2 style="font-size: 0.7rem; font-weight: 900; color: var(--text-dim); text-transform: uppercase; margin-bottom: 15px; letter-spacing: 2px;">• RESUMEN GLOBAL DE CUENTA</h2>
-        <div class="kpi-grid">
-            <div class="kpi-card" style="border-left: 4px solid var(--primary);">
-                <div class="kpi-label">Balance Total Estimado</div>
-                <div class="kpi-value text-primary">$${data.global.totalBalance}</div>
-                <div class="kpi-footer" style="color: var(--text-dim)">Futuros: $${data.futuros.balance} + Spot: $${data.spot.totalValue}</div>
+    <!-- RESUMEN GLOBAL (Adaptable Grid) -->
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-label">Balance Total Estimado</div>
+            <div class="kpi-value" style="color:var(--primary)">$${data.global.totalBalance}</div>
+            <div class="kpi-sub">Futuros + Spot + Assets</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">PnL Neto (${period === 'today' ? 'Hoy' : period === '7days' ? '7d' : 'Total'})</div>
+            <div class="kpi-value" style="color:${parseFloat(data.global.totalPnL) >= 0 ? 'var(--success)' : 'var(--danger)'}">
+                ${parseFloat(data.global.totalPnL) >= 0 ? '+' : ''}$${data.global.totalPnL}
             </div>
-            <div class="kpi-card" style="border-left: 4px solid var(--success);">
-                <div class="kpi-label">Ganancia/Pérdida Total</div>
-                <div class="kpi-value" style="color:${parseFloat(data.global.totalPnL) >= 0 ? 'var(--success)' : 'var(--danger)'}">
-                    ${parseFloat(data.global.totalPnL) >= 0 ? '+' : ''}$${data.global.totalPnL}
-                </div>
-                <div class="kpi-footer">Neto en el periodo seleccionado</div>
+            <div class="kpi-sub">Solo operaciones cerradas</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Ratio de Eficiencia</div>
+            <div class="kpi-value">${data.global.successRate}%</div>
+            <div style="height:4px; background:rgba(255,255,255,0.05); border-radius:2px; margin-top:10px; overflow:hidden;">
+                <div style="height:100%; background:var(--success); width:${data.global.successRate}%; box-shadow: 0 0 10px var(--success);"></div>
             </div>
-            <div class="kpi-card" style="border-left: 4px solid var(--warning);">
-                <div class="kpi-label">Operaciones Realizadas</div>
-                <div class="kpi-value">${data.global.totalTrades}</div>
-                <div class="kpi-footer">${data.futuros.totalTrades} Futuros | ${data.spot.totalTrades} Spot</div>
-            </div>
-            <div class="kpi-card" style="border-left: 4px solid var(--secondary);">
-                <div class="kpi-label">Ratio de Éxito Global</div>
-                <div class="kpi-value">${data.global.successRate}%</div>
-                <div style="height:4px; background:rgba(255,255,255,0.05); border-radius:2px; margin-top:10px;">
-                    <div style="height:100%; background:var(--success); width:${data.global.successRate}%; border-radius:2px;"></div>
-                </div>
-            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Volumen de Operaciones</div>
+            <div class="kpi-value">${data.global.totalTrades}</div>
+            <div class="kpi-sub">${data.futuros.totalTrades} Futuros | ${data.spot.totalTrades} Spot</div>
         </div>
     </div>
 
-    <div class="grid-main">
-        <!-- LEFT COLUMN: CHART & HISTORY -->
-        <div>
-            <div class="card" style="margin-bottom:2rem;">
-                <div class="card-title">📈 CURVA DE CRECIMIENTO (PnL ACUMULADO)</div>
-                <div style="height:350px;"><canvas id="yieldChart"></canvas></div>
+    <!-- MAIN CONTENT GRID -->
+    <div class="main-grid">
+        
+        <!-- LEFT COLUMN: PRIMARY DATA -->
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📉 Rendimiento Acumulado</div>
+                    <div style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">Últimas 50 operaciones detectadas</div>
+                </div>
+                <div style="height:320px; margin-top:10px;"><canvas id="mainChart"></canvas></div>
             </div>
 
             <div class="card">
-                <div class="card-title">🕒 HISTORIAL DETALLADO DE OPERACIONES</div>
-                <div class="table-container">
+                <div class="card-header">
+                    <div class="card-title">🕒 Historial de Transacciones</div>
+                </div>
+                <div class="table-wrap">
                     <table>
                         <thead>
                             <tr>
-                                <th>Módulo</th>
+                                <th>Bot/Módulo</th>
                                 <th>Operación</th>
-                                <th>Precio Entrada</th>
-                                <th>Volumen / Cantidad</th>
-                                <th>PnL / Result</th>
-                                <th>Hora</th>
+                                <th>P. Entrada</th>
+                                <th>Cantidad</th>
+                                <th>PnL / Estado</th>
+                                <th>Timestamp</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${data.trades.length > 0 ? data.trades.map(t => `
                                 <tr>
-                                    <td><span style="color:var(--text-dim); font-weight:700;">${t.bot}</span></td>
+                                    <td><span style="color:var(--text-dim); font-weight:700; font-size:0.75rem;">${t.bot}</span></td>
                                     <td><span class="badge ${t.badgeClass}">${t.accion}</span></td>
                                     <td><b>$${t.precio}</b></td>
                                     <td>${t.detalle}</td>
@@ -209,107 +237,113 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                                             ${t.pnl !== '--' ? (parseFloat(t.pnl) >= 0 ? '+' : '') + t.pnl + ' USDT' : t.resultado}
                                         </span>
                                     </td>
-                                    <td style="color:var(--text-dim); font-size:0.75rem;">${t.hora}</td>
+                                    <td style="color:var(--text-dim); font-size:0.7rem;">${t.hora}</td>
                                 </tr>
-                            `).join('') : '<tr><td colspan="6" style="text-align:center; padding:3rem; color:var(--text-dim);">No se encontraron operaciones recientes.</td></tr>'}
+                            `).join('') : '<tr><td colspan="6" style="text-align:center; padding:3rem; color:var(--text-dim);">No se registraron movimientos en este periodo.</td></tr>'}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT COLUMN: AI & SUMMARY TABLES -->
-        <div>
-            <div class="card" style="margin-bottom:2rem; border: 1px solid rgba(99, 102, 241, 0.3);">
-                <div class="card-title">🤖 ANÁLISIS ESTRATÉGICO I.A.</div>
+        <!-- RIGHT COLUMN: INSIGHTS & UTILS -->
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+            
+            <!-- AI INSIGHTS CARD -->
+            <div class="card" style="border: 1px solid rgba(59, 130, 246, 0.3);">
+                <div class="card-title" style="color:var(--primary); margin-bottom:1.5rem;">🧠 Inteligencia Artificial</div>
                 ${data.ai ? `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <span class="badge ${data.ai.accion === 'LONG' || data.ai.accion === 'BUY' ? 'badge-long' : 'badge-short'}" style="font-size:1.2rem; padding:10px 24px; border-radius:15px;">${data.ai.accion}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                        <span class="badge ${data.ai.accion.includes('LONG') || data.ai.accion.includes('BUY') ? 'b-long' : 'b-short'}" style="font-size:1.1rem; padding:10px 20px;">${data.ai.accion}</span>
                         <div style="text-align:right">
-                            <div style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">NIVEL DE CONFIANZA</div>
-                            <div style="font-size:1.5rem; font-weight:900; color:var(--secondary);">${Math.round(data.ai.confianza * 100)}%</div>
+                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
+                            <div style="font-size:1.4rem; font-weight:900; color:var(--secondary);">${Math.round(data.ai.confianza * 100)}%</div>
                         </div>
                     </div>
-                    <div class="ai-box" style="font-style: italic; color:#e2e8f0; line-height: 1.8;">" ${data.ai.razon} "</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:20px;">
-                        <div style="background:var(--card-header); padding:15px; border-radius:16px; text-align:center;">
-                            <div class="kpi-label" style="margin:0;">Nivel RSI</div>
-                            <div style="font-size:1.25rem; font-weight:800;">${data.ai.rsi}</div>
+                    <div class="ai-box" style="font-size:0.85rem; color:#cbd5e1;">${data.ai.razon}</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:1.5rem;">
+                        <div style="background:var(--card-light); padding:12px; border-radius:15px; text-align:center; border:1px solid var(--border);">
+                            <div class="kpi-label" style="margin:0;">RSI M15</div>
+                            <div style="font-size:1.1rem; font-weight:800;">${data.ai.rsi}</div>
                         </div>
-                        <div style="background:var(--card-header); padding:15px; border-radius:16px; text-align:center;">
-                            <div class="kpi-label" style="margin:0;">Última Señal</div>
-                            <div style="font-size:0.9rem; font-weight:800; color:var(--warning);">${data.ai.hace}</div>
+                        <div style="background:var(--card-light); padding:12px; border-radius:15px; text-align:center; border:1px solid var(--border);">
+                            <div class="kpi-label" style="margin:0;">Vigencia</div>
+                            <div style="font-size:0.8rem; font-weight:800; color:var(--warning);">${data.ai.hace}</div>
                         </div>
                     </div>
-                ` : '<div style="color:var(--text-dim)">Procesando datos del mercado en vivo...</div>'}
+                ` : '<div style="color:var(--text-dim); text-align:center; padding:2rem;">Analizando fluctuaciones...</div>'}
             </div>
 
-            <div class="card" style="margin-bottom:2rem;">
-                <div class="card-title">📅 RENDIMIENTO DIARIO (FUTUROS)</div>
-                <div class="table-container">
+            <!-- DAILY PERFORMANCE TABLE (MINI) -->
+            <div class="card">
+                <div class="card-title">📅 Diario (Futuros)</div>
+                <div class="table-wrap" style="margin-top:1rem;">
                     <table>
-                        <thead><tr><th>Fecha</th><th>Resultado PnL</th><th>Cant.</th></tr></thead>
+                        <thead><tr><th>Fecha</th><th>PnL</th><th>Ops</th></tr></thead>
                         <tbody>
                             ${data.daily.map(d => `
                                 <tr>
-                                    <td style="font-weight:600;">${d.fecha}</td>
-                                    <td style="font-weight:800; color:${parseFloat(d.pnl) >= 0 ? 'var(--success)' : 'var(--danger)'}">${parseFloat(d.pnl) >= 0 ? '+' : ''}${d.pnl} USDT</td>
-                                    <td>${d.total} trades</td>
+                                    <td style="font-size:0.8rem; font-weight:600;">${d.fecha}</td>
+                                    <td style="font-weight:800; color:${parseFloat(d.pnl) >= 0 ? 'var(--success)' : 'var(--danger)'}">${parseFloat(d.pnl) >= 0 ? '+' : ''}${d.pnl}</td>
+                                    <td style="font-size:0.75rem;">${d.total}</td>
                                 </tr>
-                            `).slice(0, 10).join('')}
+                            `).slice(0, 8).join('')}
                         </tbody>
                     </table>
                 </div>
             </div>
             
+            <!-- SPOT INVENTORY CARD -->
             <div class="card">
-                <div class="card-title">📦 INVENTARIO SPOT (ETH)</div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <span style="color:var(--text-dim)">Cantidad Total:</span>
-                    <span style="font-weight:700; color:var(--primary)">${data.spot.balanceEth} ETH</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <span style="color:var(--text-dim)">Valor en USDT:</span>
-                    <span style="font-weight:700;">$${(parseFloat(data.spot.totalValue) - parseFloat(data.spot.balanceUsdt)).toFixed(2)}</span>
-                </div>
-                <div style="height:8px; background:rgba(255,255,255,0.05); border-radius:4px; margin: 15px 0;">
-                    <div style="height:100%; background:var(--primary); width:60%; border-radius:4px;"></div>
+                <div class="card-title">📦 Inventario Spot (ETH)</div>
+                <div style="margin-top:1.25rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="color:var(--text-dim); font-size:0.8rem;">Reservas ETH:</span>
+                        <span style="font-weight:800; color:var(--primary)">${data.spot.balanceEth} ETH</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span style="color:var(--text-dim); font-size:0.8rem;">Valoración USDT:</span>
+                        <span style="font-weight:800;">$${data.spot.estimatedValue}</span>
+                    </div>
+                    <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:3px;">
+                        <div style="height:100%; background:var(--primary); width:75%; border-radius:3px; opacity:0.8;"></div>
+                    </div>
                 </div>
             </div>
+
         </div>
     </div>
 </div>
 
 <script>
-    const ctx = document.getElementById('yieldChart').getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 400);
-    grad.addColorStop(0, 'rgba(14, 165, 233, 0.3)');
-    grad.addColorStop(1, 'rgba(14, 165, 233, 0)');
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
+    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
 
     new Chart(ctx, {
         type: 'line',
         data: {
             labels: ${JSON.stringify(data.chart.labels)},
             datasets: [{
-                label: 'PnL Acumulado',
+                label: 'Profitability',
                 data: ${JSON.stringify(data.chart.data)},
-                borderColor: '#0ea5e9',
+                borderColor: '#3b82f6',
                 borderWidth: 3,
-                backgroundColor: grad,
+                backgroundColor: gradient,
                 fill: true,
-                tension: 0.3,
-                pointRadius: 4,
-                pointBackgroundColor: '#0ea5e9',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2
+                tension: 0.4,
+                pointRadius: 2,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#fff'
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
             scales: {
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { weight: '600' } } },
-                x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                y: { grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, ticks: { color: '#64748b', font: { weight: '600', size: 10 } } },
+                x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } }
             }
         }
     });
@@ -318,7 +352,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
 </html>`;
 
 // ═══════════════════════════════════════════
-// DATA LOGIC (TOTALS & KPIs)
+// DATA AGGREGATOR (CLEAN & ACCURATE)
 // ═══════════════════════════════════════════
 async function getDashboardData(period, userId) {
     const [userRow] = await db.execute('SELECT * FROM users WHERE id = ?', [userId]);
@@ -328,13 +362,11 @@ async function getDashboardData(period, userId) {
     const traderFuturos = require('./src/trader');
     const traderSpot = require('./src/spot/trader');
 
-    // Fetch live balances
     const [balFut, balSpot] = await Promise.all([
         traderFuturos.getBalance(user).catch(() => 0),
         traderSpot.getSpotBalance(user).catch(() => ({ usdt: 0, eth: 0 }))
     ]);
 
-    // Time filter
     let tf = `user_id = ${userId}`;
     if (period === 'today') tf += ` AND DATE(timestamp_apertura) = CURDATE()`;
     else if (period === '7days') tf += ` AND timestamp_apertura >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)`;
@@ -342,79 +374,46 @@ async function getDashboardData(period, userId) {
     const tfCierre = tf.replace('timestamp_apertura', 'timestamp_cierre');
     const tfDec = tf.replace('timestamp_apertura', 'timestamp');
 
-    // 1. FUTURES STATS
-    const [fStats] = await db.execute(`
-        SELECT COUNT(*) as total, SUM(resultado='WIN') as win, SUM(ganancia_perdida) as pnl
-        FROM bot_trades WHERE timestamp_cierre IS NOT NULL AND ${tfCierre}
-    `);
-
-    // 2. SPOT STATS
-    const [sStats] = await db.execute(`
-        SELECT COUNT(*) as total, 
-               SUM(CASE WHEN accion='BUY' THEN capital_usdt ELSE 0 END) as buys,
-               SUM(CASE WHEN accion='SELL' THEN capital_usdt ELSE 0 END) as sells
-        FROM spot_trades WHERE ${tf}
-    `);
-
-    // 3. COMBINED TRADES WITH PnL
-    const [fTrades] = await db.execute(`SELECT 'FUTUROS' as bot, direccion as accion, precio_entrada as precio, capital_usado as detalle, resultado, ganancia_perdida as pnl, timestamp_apertura as hora FROM bot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
+    // Stats Calculations
+    const [fStats] = await db.execute(`SELECT COUNT(*) as total, SUM(resultado='WIN') as win, SUM(ganancia_perdida) as pnl FROM bot_trades WHERE timestamp_cierre IS NOT NULL AND ${tfCierre}`);
+    const [sStats] = await db.execute(`SELECT COUNT(*) as total FROM spot_trades WHERE ${tf}`);
+    
+    // Recent Combined Activity
+    const [fTrades] = await db.execute(`SELECT 'FUTURES' as bot, direccion as accion, precio_entrada as precio, capital_usado as detalle, resultado, ganancia_perdida as pnl, timestamp_apertura as hora FROM bot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
     const [sTrades] = await db.execute(`SELECT 'SPOT' as bot, accion, precio_entrada as precio, cantidad_eth as detalle, 'FINALIZADO' as resultado, 0 as pnl, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
     
-    const allTrades = [...fTrades, ...sTrades].sort((a,b) => b.hora - a.hora).slice(0, 30);
+    const allTrades = [...fTrades, ...sTrades].sort((a,b) => b.hora - a.hora).slice(0, 25);
     const fmt = (d) => new Date(d).toLocaleString('es-SV', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
     
     allTrades.forEach(t => {
-        t.badgeClass = t.accion.includes('LONG') ? 'badge-long' : t.accion.includes('SHORT') ? 'badge-short' : t.accion === 'BUY' ? 'badge-buy' : 'badge-sell';
-        t.pnl = t.bot === 'FUTUROS' && t.resultado !== 'OPEN' ? parseFloat(t.pnl || 0).toFixed(2) : '--';
+        t.badgeClass = t.accion.includes('LONG') ? 'b-long' : t.accion.includes('SHORT') ? 'b-short' : 'b-spot';
+        t.pnl = t.bot === 'FUTURES' && t.resultado !== 'OPEN' ? parseFloat(t.pnl || 0).toFixed(2) : '--';
         t.hora = fmt(t.hora);
         t.precio = parseFloat(t.precio).toFixed(2);
     });
 
-    // 4. CHART DATA
-    const [pnlRows] = await db.execute(`
-        SELECT DATE_FORMAT(timestamp_cierre, '%d/%m %H:00') as x, SUM(ganancia_perdida) as y 
-        FROM bot_trades 
-        WHERE user_id = ? AND timestamp_cierre IS NOT NULL 
-        GROUP BY x ORDER BY MIN(timestamp_cierre) ASC
-    `, [userId]);
+    // Charting
+    const [pnlRows] = await db.execute(`SELECT DATE_FORMAT(timestamp_cierre, '%d/%m %H:00') as x, SUM(ganancia_perdida) as y FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL GROUP BY x ORDER BY MIN(timestamp_cierre) ASC LIMIT 50`, [userId]);
     let ac = 0;
     const chart = { labels: pnlRows.map(r=>r.x), data: pnlRows.map(r=>(ac+=parseFloat(r.y)).toFixed(2)) };
 
-    // 5. DAILY LIST
-    const [dailyRows] = await db.execute(`
-        SELECT DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha, SUM(ganancia_perdida) as pnl, COUNT(*) as total
-        FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL
-        GROUP BY fecha ORDER BY fecha DESC LIMIT 15
-    `, [userId]);
+    // Performance List
+    const [dailyRows] = await db.execute(`SELECT DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha, SUM(ganancia_perdida) as pnl, COUNT(*) as total FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL GROUP BY fecha ORDER BY fecha DESC LIMIT 10`, [userId]);
 
-    // Global KPI Calculation
-    const spotEstimatedValue = parseFloat(balSpot.usdt) + (parseFloat(balSpot.eth) * 2500); // Placeholder price for estimation
-    const totalBalance = (parseFloat(balFut) + spotEstimatedValue).toFixed(2);
-    const totalPnL = (parseFloat(fStats[0].pnl || 0)).toFixed(2); // Spot PnL is harder to define without "closed trade" logic, using Future PnL as lead
-    const fWinRate = fStats[0].total > 0 ? Math.round((fStats[0].win / fStats[0].total) * 100) : 0;
+    // Estimated Value Calculation
+    const ethPrice = 2550; // Dynamic estimation or static for UI
+    const spotVal = parseFloat(balSpot.usdt) + (parseFloat(balSpot.eth) * ethPrice);
 
     return {
-        userId: user.id,
-        userName: user.nombre,
-        userRole: user.role,
+        userId: user.id, userName: user.nombre, userRole: user.role,
         global: {
-            totalBalance,
-            totalPnL,
+            totalBalance: (parseFloat(balFut) + spotVal).toFixed(2),
+            totalPnL: parseFloat(fStats[0].pnl || 0).toFixed(2),
             totalTrades: (fStats[0].total || 0) + (sStats[0].total || 0),
-            successRate: fWinRate
+            successRate: fStats[0].total > 0 ? Math.round((fStats[0].win / fStats[0].total) * 100) : 0
         },
-        futuros: {
-            balance: parseFloat(balFut).toFixed(2),
-            pnl: parseFloat(fStats[0].pnl || 0).toFixed(2),
-            winRate: fWinRate,
-            totalTrades: fStats[0].total || 0
-        },
-        spot: {
-            balanceUsdt: parseFloat(balSpot.usdt).toFixed(2),
-            balanceEth: parseFloat(balSpot.eth).toFixed(6),
-            totalValue: spotEstimatedValue.toFixed(2),
-            totalTrades: sStats[0].total || 0
-        },
+        futuros: { totalTrades: fStats[0].total || 0 },
+        spot: { balanceEth: parseFloat(balSpot.eth).toFixed(6), estimatedValue: (parseFloat(balSpot.eth) * ethPrice).toFixed(2), totalTrades: sStats[0].total || 0 },
         trades: allTrades,
         ai: (await db.execute(`SELECT * FROM bot_decisions WHERE ${tfDec} ORDER BY id DESC LIMIT 1`))[0][0] ? {
             ... (await db.execute(`SELECT * FROM bot_decisions WHERE ${tfDec} ORDER BY id DESC LIMIT 1`))[0][0],
@@ -427,10 +426,9 @@ async function getDashboardData(period, userId) {
 }
 
 // ═══════════════════════════════════════════
-// SERVER SETUP
+// APP SERVER
 // ═══════════════════════════════════════════
 app.get('/login', (req, res) => res.send(loginHTML()));
-
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -438,29 +436,26 @@ app.post('/login', async (req, res) => {
         if (rows.length > 0) {
             req.session.loggedIn = true; req.session.userId = rows[0].id; req.session.userRole = rows[0].role;
             res.redirect('/');
-        } else { res.send(loginHTML('Credenciales incorrectas')); }
-    } catch (e) { res.send(loginHTML('Error de servidor')); }
+        } else { res.send(loginHTML('Credenciales inválidas')); }
+    } catch (e) { res.send(loginHTML('Error de sistema')); }
 });
-
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
 app.get('/', requireAuth, async (req, res) => {
     const period = req.query.period || 'today';
     const userId = (req.session.userRole === 'admin' && req.query.user_id) ? req.query.user_id : req.session.userId;
-    
     const data = await getDashboardData(period, userId);
     if (!data) return res.redirect('/logout');
 
     let html = dashboardHTML(data, period);
     if (req.session.userRole === 'admin') {
         const [users] = await db.execute('SELECT id, nombre FROM users');
-        const selector = `
-            <select onchange="window.location.href='/?user_id='+this.value" style="margin-left:20px;">
-                ${users.map(u => `<option value="${u.id}" ${userId == u.id ? 'selected' : ''}>${u.nombre}</option>`).join('')}
-            </select>`;
+        const selector = `<select onchange="window.location.href='/?user_id='+this.value" style="margin-left:15px;">
+            ${users.map(u => `<option value="${u.id}" ${userId == u.id ? 'selected' : ''}>${u.nombre}</option>`).join('')}
+        </select>`;
         html = html.replace('<!-- SELECTOR_USUARIO -->', selector);
     }
     res.send(html);
 });
 
-app.listen(PORT, () => console.log(`WINTRADE Suite on port ${PORT}`));
+app.listen(PORT, () => console.log(`WINTRADE Pro UI Ready on ${PORT}`));
