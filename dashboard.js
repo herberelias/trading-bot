@@ -489,15 +489,15 @@ async function getDashboardData(period, userId) {
         ethActual:      ethActual.toFixed(6)
     };
 
-    // AI Futuros: siempre la ultima decision
+    // AI Futuros: ultima decision de ESTE usuario
     const [aiRowsFut] = await db.execute(
-        `SELECT * FROM bot_decisions ORDER BY id DESC LIMIT 1`
+        `SELECT * FROM bot_decisions WHERE user_id = ? ORDER BY id DESC LIMIT 1`, [userId]
     );
     const lastAIFut = aiRowsFut[0] || null;
 
-    // AI Spot: siempre la ultima decision
+    // AI Spot: ultima decision de ESTE usuario
     const [aiRowsSpot] = await db.execute(
-        `SELECT * FROM spot_decisions ORDER BY id DESC LIMIT 1`
+        `SELECT * FROM spot_decisions WHERE user_id = ? ORDER BY id DESC LIMIT 1`, [userId]
     );
     const lastAISpot = aiRowsSpot[0] || null;
 

@@ -14,21 +14,22 @@ const logger = {
         try {
             const query = `
                 INSERT INTO bot_decisions (
-                    par, precio_actual, rsi, ema20, ema50, macd, 
+                    user_id, par, precio_actual, rsi, ema20, ema50, macd, 
                     volumen_ratio, accion, confianza, razon, 
                     stop_loss, take_profit, ejecutado, motivo_no_ejecutado,
                     timeframe, signal_macd, histogram, volumen_vs_promedio, 
                     fecha, modo_real
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
             `;
             const values = [
+                decision.user_id || 1,
                 process.env.PAR,
                 decision.precioActual,
                 decision.rsi,
                 decision.ema20,
                 decision.ema50,
                 decision.macd,
-                decision.volumenPct, // Asignamos volumenPct a volumen_ratio también para rellenarlo
+                decision.volumenPct,
                 decision.accion,
                 decision.confianza,
                 decision.razon,
@@ -43,7 +44,7 @@ const logger = {
                 process.env.MODO_REAL === 'true' ? 1 : 0
             ];
             await db.execute(query, values);
-            logger.info(`💾 Decisión guardada en base de datos.`);
+            logger.info(`[user:${decision.user_id || 1}] 💾 Decisión guardada en BD.`);
         } catch (error) {
             logger.error('No se pudo guardar la decisión en la BD', error);
         }
@@ -79,13 +80,14 @@ const logger = {
         try {
             const query = `
                 INSERT INTO spot_decisions (
-                    par, precio_actual, rsi, ema20, ema50, macd,
+                    user_id, par, precio_actual, rsi, ema20, ema50, macd,
                     volumen_ratio, accion, confianza, razon,
                     precio_objetivo, stop_loss_ref, ejecutado,
                     motivo_no_ejecutado, fecha, modo_real
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
             `;
             const values = [
+                decision.user_id || 1,
                 process.env.PAR_SPOT,
                 decision.precioActual,
                 decision.rsi,
@@ -103,7 +105,7 @@ const logger = {
                 process.env.MODO_REAL_SPOT === 'true' ? 1 : 0
             ];
             await db.execute(query, values);
-            logger.info(`[SPOT] Decision guardada en base de datos.`);
+            logger.info(`[SPOT user:${decision.user_id || 1}] Decision guardada en BD.`);
         } catch (error) {
             logger.error('[SPOT] No se pudo guardar decision en BD', error);
         }
