@@ -424,20 +424,31 @@ async function getDashboardData(period, userId) {
     const [sStats] = await db.execute(`SELECT COUNT(*) as total FROM spot_trades WHERE ${tf}`);
     
     // Recent Combined Activity
-    const [fTrades] = await db.execute(`SELECT 'FUTURES' as bot, direccion as accion, precio_entrada as precio, capital_usado as detalle, resultado, ganancia_perdida as pnl, timestamp_apertura as hora FROM bot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
-    const [sTrades] = await db.execute(`SELECT 'SPOT' as bot, accion, precio_entrada as precio, capital_usdt as detalle, 'FINALIZADO' as resultado, 0 as pnl, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
-    
-    const allTrades = [...fTrades, ...sTrades].sort((a,b) => b.hora - a.hora).slice(0, 25);
+    const [fTradesRaw] = await db.execute(`SELECT 'FUTURES' as bot, direccion as accion, precio_entrada as precio, capital_usado as margen, resultado, ganancia_perdida as pnl, timestamp_apertura as hora FROM bot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
+    const [sTradesRaw] = await db.execute(`SELECT 'SPOT' as bot, accion, precio_entrada as precio, capital_usdt as monto_usdt, 'FINALIZADO' as resultado, 0 as pnl, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
+
     const fmt = (d) => new Date(d).toLocaleString('es-SV', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
-    
+    const fmtUSDT = (v) => parseFloat(v || 0) > 0 ? `$${parseFloat(v).toFixed(2)} USDT` : '--';
+
+    // Build separate formatted arrays BEFORE merging (avoid double-format bug)
+    const tradesFuturos = fTradesRaw.map(t => ({
+        accion: t.accion,
+        precio: parseFloat(t.precio).toFixed(2),
+        detalle: fmtUSDT(t.margen),
+        hora: fmt(t.hora)
+    }));
+    const tradesSpot = sTradesRaw.map(t => ({
+        accion: t.accion,
+        precio: parseFloat(t.precio).toFixed(2),
+        detalle: fmtUSDT(t.monto_usdt),
+        hora: fmt(t.hora)
+    }));
+
+    // Combined (legacy, keep for chart compat)
+    const allTrades = [...fTradesRaw, ...sTradesRaw].sort((a,b) => new Date(b.hora) - new Date(a.hora)).slice(0, 25);
     allTrades.forEach(t => {
-        t.badgeClass = t.accion.includes('LONG') ? 'b-long' : t.accion.includes('SHORT') ? 'b-short' : 'b-spot';
-        t.pnl = t.bot === 'FUTURES' && t.resultado !== 'OPEN' ? parseFloat(t.pnl || 0).toFixed(2) : '--';
         t.hora = fmt(t.hora);
         t.precio = parseFloat(t.precio).toFixed(2);
-        // Format the detalle column with context
-        const monto = parseFloat(t.detalle || 0);
-        t.detalle = monto > 0 ? `$${monto.toFixed(2)} USDT` : '--';
     });
 
     // Charting
@@ -479,8 +490,8 @@ async function getDashboardData(period, userId) {
             totalTrades: executedSpot
         },
         trades: allTrades,
-        tradesFuturos: fTrades.map(t => ({ ...t, hora: fmt(t.hora), precio: parseFloat(t.precio).toFixed(2), detalle: parseFloat(t.capital_usado || t.detalle || 0) > 0 ? `$${parseFloat(t.capital_usado || t.detalle || 0).toFixed(2)} USDT` : '--' })),
-        tradesSpot: sTrades.map(t => ({ ...t, hora: fmt(t.hora), precio: parseFloat(t.precio).toFixed(2), detalle: parseFloat(t.capital_usdt || t.detalle || 0) > 0 ? `$${parseFloat(t.capital_usdt || t.detalle || 0).toFixed(2)} USDT` : '--' })),
+        tradesFuturos,
+        tradesSpot,
         aiFuturos: lastAIFut ? {
             accion:    lastAIFut.accion,
             razon:     lastAIFut.razon,
