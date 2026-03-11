@@ -246,29 +246,58 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         <!-- RIGHT COLUMN: INSIGHTS & UTILS -->
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
             
-            <!-- AI INSIGHTS CARD -->
-            <div class="card" style="border: 1px solid rgba(59, 130, 246, 0.3);">
-                <div class="card-title" style="color:var(--primary); margin-bottom:1.5rem;">🧠 Inteligencia Artificial</div>
-                ${data.ai ? `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-                        <span class="badge ${data.ai.accion.includes('LONG') || data.ai.accion.includes('BUY') ? 'b-long' : 'b-short'}" style="font-size:1.1rem; padding:10px 20px;">${data.ai.accion}</span>
-                        <div style="text-align:right">
-                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
-                            <div style="font-size:1.4rem; font-weight:900; color:var(--secondary);">${Math.round(data.ai.confianza * 100)}%</div>
+            <!-- AI PARALELO: FUTUROS + SPOT -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                
+                <!-- AI FUTUROS -->
+                <div class="card" style="border: 1px solid rgba(99, 102, 241, 0.3); padding:1.25rem;">
+                    <div style="font-size:0.7rem; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:var(--secondary); margin-bottom:1rem;">📊 IA FUTUROS</div>
+                    ${data.aiFuturos ? `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <span class="badge ${data.aiFuturos.accion === 'LONG' ? 'b-long' : data.aiFuturos.accion === 'SHORT' ? 'b-short' : 'b-spot'}" style="font-size:0.85rem; padding:8px 14px;">${data.aiFuturos.accion}</span>
+                            <div style="text-align:right;">
+                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
+                                <div style="font-size:1.1rem; font-weight:900; color:var(--secondary);">${Math.round(data.aiFuturos.confianza * 100)}%</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="ai-box" style="font-size:0.85rem; color:#cbd5e1;">${data.ai.razon}</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:1.5rem;">
-                        <div style="background:var(--card-light); padding:12px; border-radius:15px; text-align:center; border:1px solid var(--border);">
-                            <div class="kpi-label" style="margin:0;">RSI M15</div>
-                            <div style="font-size:1.1rem; font-weight:800;">${data.ai.rsi}</div>
+                        <div class="ai-box" style="font-size:0.75rem; color:#cbd5e1; max-height:120px; overflow-y:auto;">${data.aiFuturos.razon}</div>
+                        <div style="display:flex; gap:8px; margin-top:0.75rem;">
+                            <div style="flex:1; background:var(--card-light); padding:8px; border-radius:10px; text-align:center;">
+                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">RSI</div>
+                                <div style="font-weight:800; font-size:0.9rem;">${data.aiFuturos.rsi}</div>
+                            </div>
+                            <div style="flex:1; background:var(--card-light); padding:8px; border-radius:10px; text-align:center;">
+                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">HACE</div>
+                                <div style="font-weight:800; font-size:0.75rem; color:var(--warning);">${data.aiFuturos.hace}</div>
+                            </div>
                         </div>
-                        <div style="background:var(--card-light); padding:12px; border-radius:15px; text-align:center; border:1px solid var(--border);">
-                            <div class="kpi-label" style="margin:0;">Vigencia</div>
-                            <div style="font-size:0.8rem; font-weight:800; color:var(--warning);">${data.ai.hace}</div>
+                    ` : '<div style="color:var(--text-dim); text-align:center; padding:1.5rem; font-size:0.8rem;">Sin señal</div>'}
+                </div>
+
+                <!-- AI SPOT -->
+                <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.3); padding:1.25rem;">
+                    <div style="font-size:0.7rem; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:var(--success); margin-bottom:1rem;">🔷 IA SPOT (ETH)</div>
+                    ${data.aiSpot ? `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <span class="badge ${data.aiSpot.accion === 'BUY' ? 'b-long' : data.aiSpot.accion === 'SELL' ? 'b-short' : 'b-spot'}" style="font-size:0.85rem; padding:8px 14px;">${data.aiSpot.accion}</span>
+                            <div style="text-align:right;">
+                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
+                                <div style="font-size:1.1rem; font-weight:900; color:var(--success);">${Math.round(data.aiSpot.confianza * 100)}%</div>
+                            </div>
                         </div>
-                    </div>
-                ` : '<div style="color:var(--text-dim); text-align:center; padding:2rem;">Analizando fluctuaciones...</div>'}
+                        <div class="ai-box" style="font-size:0.75rem; color:#cbd5e1; max-height:120px; overflow-y:auto;">${data.aiSpot.razon}</div>
+                        <div style="display:flex; gap:8px; margin-top:0.75rem;">
+                            <div style="flex:1; background:var(--card-light); padding:8px; border-radius:10px; text-align:center;">
+                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">RSI</div>
+                                <div style="font-weight:800; font-size:0.9rem;">${data.aiSpot.rsi}</div>
+                            </div>
+                            <div style="flex:1; background:var(--card-light); padding:8px; border-radius:10px; text-align:center;">
+                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">HACE</div>
+                                <div style="font-weight:800; font-size:0.75rem; color:var(--warning);">${data.aiSpot.hace}</div>
+                            </div>
+                        </div>
+                    ` : '<div style="color:var(--text-dim); text-align:center; padding:1.5rem; font-size:0.8rem;">Sin señal</div>'}
+                </div>
             </div>
 
             <!-- DAILY PERFORMANCE TABLE (MINI) -->
@@ -408,11 +437,17 @@ async function getDashboardData(period, userId) {
     const executedFuturos = fExecuted[0].executed || 0;
     const executedSpot   = sStats[0].total || 0;
 
-    // AI: siempre el ultimo mensaje sin importar el periodo
-    const [aiRows] = await db.execute(
-        `SELECT * FROM bot_decisions WHERE user_id = ? ORDER BY id DESC LIMIT 1`, [userId]
+    // AI Futuros: siempre la ultima decision
+    const [aiRowsFut] = await db.execute(
+        `SELECT * FROM bot_decisions ORDER BY id DESC LIMIT 1`
     );
-    const lastAI = aiRows[0] || null;
+    const lastAIFut = aiRowsFut[0] || null;
+
+    // AI Spot: siempre la ultima decision
+    const [aiRowsSpot] = await db.execute(
+        `SELECT * FROM spot_decisions ORDER BY id DESC LIMIT 1`
+    );
+    const lastAISpot = aiRowsSpot[0] || null;
 
     return {
         userId: user.id, userName: user.nombre, userRole: user.role,
@@ -430,12 +465,19 @@ async function getDashboardData(period, userId) {
             totalTrades: executedSpot
         },
         trades: allTrades,
-        ai: lastAI ? {
-            accion:    lastAI.accion,
-            razon:     lastAI.razon,
-            confianza: lastAI.confianza,
-            rsi:       lastAI.rsi || '--',
-            hace:      Math.round((Date.now() - new Date(lastAI.timestamp)) / 60000) + ' min'
+        aiFuturos: lastAIFut ? {
+            accion:    lastAIFut.accion,
+            razon:     lastAIFut.razon,
+            confianza: lastAIFut.confianza,
+            rsi:       lastAIFut.rsi || '--',
+            hace:      Math.round((Date.now() - new Date(lastAIFut.fecha)) / 60000) + ' min'
+        } : null,
+        aiSpot: lastAISpot ? {
+            accion:    lastAISpot.accion,
+            razon:     lastAISpot.razon,
+            confianza: lastAISpot.confianza,
+            rsi:       lastAISpot.rsi || '--',
+            hace:      Math.round((Date.now() - new Date(lastAISpot.fecha)) / 60000) + ' min'
         } : null,
         chart,
         daily: dailyRows.map(r=>({ fecha: r.fecha, pnl: parseFloat(r.pnl).toFixed(2), total: r.total }))
