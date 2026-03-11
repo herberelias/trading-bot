@@ -324,7 +324,7 @@ async function getDashboardData(period = 'today', userId = 1) {
         const [winData] = await db.execute(`SELECT COUNT(*) as total, SUM(resultado = 'WIN') as ganados, SUM(ganancia_perdida) as pnl_total FROM bot_trades WHERE timestamp_cierre IS NOT NULL AND ${dfCierre}`);
 
         // PnL Chart (30 días)
-        const [pnlRows] = await db.execute(`SELECT DATE_FORMAT(timestamp_cierre, '%d/%m') as x, SUM(ganancia_perdida) as y FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL GROUP BY x ORDER BY timestamp_cierre ASC`, [userId]);
+        const [pnlRows] = await db.execute(`SELECT DATE_FORMAT(timestamp_cierre, '%d/%m') as x, SUM(ganancia_perdida) as y FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL GROUP BY x ORDER BY MIN(timestamp_cierre) ASC`, [userId]);
         let ac = 0;
         const chartPnl = pnlRows.map(r => ({ x: r.x, y: (ac += parseFloat(r.y)).toFixed(2) }));
 
