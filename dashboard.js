@@ -1148,7 +1148,7 @@ async function getDashboardData(period = 'today') {
                 gananciaBruta: parseFloat(winData[0].ganancia_bruta || 0).toFixed(2),
                 perdidaBruta: parseFloat(winData[0].perdida_bruta || 0).toFixed(2),
                 comisionTotal: parseFloat(winData[0].total_comisiones || 0).toFixed(2),
-                dailyFinanciero: dailyFinanciero.map(d => ({
+                dailyFinanciero: (dailyFinanciero || []).map(d => ({
                     ...d,
                     pnl_dia: parseFloat(d.pnl_dia || 0).toFixed(2),
                     comision_dia: parseFloat(d.comision_dia || 0).toFixed(2),
@@ -1193,7 +1193,11 @@ async function getDashboardData(period = 'today') {
             ultimaDecisionSpot: null, ultimaCompraEth: null,
             totalTradesToday: 0, totalTrades: 0, winRateGlobal: 0,
             tasaEjecucionGlobal: 0,
-            statsFuturos: { total:0, longs:0, shorts:0, decisiones:0, holds:0, winRate:0, tasaEjecucion:0, tradesCerrados:0, ganados:0, perdidos:0, pnlTotal:0 },
+            statsFuturos: { 
+                total:0, longs:0, shorts:0, decisiones:0, holds:0, winRate:0, tasaEjecucion:0, 
+                tradesCerrados:0, ganados:0, perdidos:0, pnlTotal:0, 
+                gananciaBruta:0, perdidaBruta:0, comisionTotal:0, dailyFinanciero: [] 
+            },
             statsSpot: { total:0, buys:0, sells:0, decisiones:0, holds:0, tasaEjecucion:0 },
             statsGlobalFuturos: { total:0, longs:0, shorts:0, diasActivo:0 },
             statsGlobalSpot: { total:0, buys:0, sells:0, diasActivo:0 }
