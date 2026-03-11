@@ -63,6 +63,22 @@ async function getTodayTradesSpot() {
     }
 }
 
+// Obtener ultimo precio de compra para DCA y calculo de ganancias
+async function getUltimaCompra() {
+    try {
+        const query = `
+            SELECT precio_entrada
+            FROM spot_trades
+            WHERE accion = 'BUY'
+            ORDER BY timestamp_apertura DESC LIMIT 1
+        `;
+        const [rows] = await db.execute(query);
+        return rows.length > 0 ? parseFloat(rows[0].precio_entrada) : null;
+    } catch(e) {
+        return null;
+    }
+}
+
 async function placeSpotOrder(orderParams) {
     try {
         const res = await request('POST', '/openApi/spot/v1/trade/order', orderParams);
@@ -216,4 +232,4 @@ async function executeSell(decision, precioActual) {
     }
 }
 
-module.exports = { getSpotBalance, getTodayTradesSpot, executeBuy, executeSell };
+module.exports = { getSpotBalance, getTodayTradesSpot, getUltimaCompra, executeBuy, executeSell };

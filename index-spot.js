@@ -36,11 +36,12 @@ async function runSpotBot() {
         const precioActual = indicators15m.currentPrice;
 
         // 3. Contexto en paralelo
-        const [balanceSpot, historialHoy, fearGreed, racha] = await Promise.all([
+        const [balanceSpot, historialHoy, fearGreed, racha, ultimaCompraPrecio] = await Promise.all([
             traderSpot.getSpotBalance(),
             traderSpot.getTodayTradesSpot(),
             context.getFearAndGreed(),
-            context.getRachaActual()
+            context.getRachaActual(),
+            traderSpot.getUltimaCompra()
         ]);
 
         const tieneEth = balanceSpot.eth > 0.0001;
@@ -57,7 +58,7 @@ async function runSpotBot() {
         const decision = await aiSpot.consultarGeminiSpot(
             indicators15m, indicators1h, indicators4h,
             precioActual, balanceSpot, historialHoy,
-            fearGreed, soportesResistencias, sesionMercado, racha
+            fearGreed, soportesResistencias, sesionMercado, racha, ultimaCompraPrecio
         );
 
         if (!decision) {

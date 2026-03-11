@@ -9,7 +9,7 @@ const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:ge
 async function consultarGeminiSpot(
     indicators15m, indicators1h, indicators4h,
     precioActual, balanceSpot, historialHoy,
-    fearGreed, soportesResistencias, sesionMercado, racha
+    fearGreed, soportesResistencias, sesionMercado, racha, ultimaCompraPrecio
 ) {
     const tendencia1h = parseFloat(indicators1h.ema20) > parseFloat(indicators1h.ema50)
         ? 'ALCISTA (EMA20 > EMA50)' : 'BAJISTA (EMA20 < EMA50)';
@@ -22,9 +22,13 @@ async function consultarGeminiSpot(
     const rsi15m = parseFloat(indicators15m.rsi);
 
     const balanceStr = `USDT disponible: ${balanceSpot.usdt.toFixed(2)} | ETH disponible: ${balanceSpot.eth.toFixed(6)} (valor: ~${(balanceSpot.eth * precioActual).toFixed(2)} USDT)`;
+    const dcaStr = ultimaCompraPrecio
+        ? `Último precio de compra de ETH fue a ${ultimaCompraPrecio} USDT.`
+        : 'Aún no has comprado ETH (no hay precio promedio).';
+        
     const posicionStr = balanceSpot.eth > 0.0001
-        ? `Holding: ${balanceSpot.eth.toFixed(6)} ETH (~${(balanceSpot.eth * precioActual).toFixed(2)} USDT)`
-        : 'Sin ETH en cartera (100% en USDT)';
+        ? `Holding: ${balanceSpot.eth.toFixed(6)} ETH (~${(balanceSpot.eth * precioActual).toFixed(2)} USDT). ${dcaStr}`
+        : 'Sin ETH en cartera (100% en USDT).';
 
     const historialStr = historialHoy.length > 0
         ? `${historialHoy.length} operaciones hoy`
@@ -50,7 +54,10 @@ REGLAS SPOT (MUY IMPORTANTE):
 - NO hay SHORT, NO hay apalancamiento, NO hay liquidacion
 - stop_loss_ref es referencial — si el precio baja a ese nivel decides SELL en el siguiente ciclo
 - Puedes tomar ganancias parciales (sell_pct < 100)
-- Puedes promediar hacia abajo si la tendencia es alcista y tienes USDT disponible
+- ESTRATEGIA DCA (Dollar Cost Averaging):
+  Si el precio actual es más bajo que tu ultimo precio de compra (promediar a la baja), y la tendencia sigue siendo alcista pero con un retroceso, usa un porcentaje de USDT (capital_pct) para promediar.
+  Si el precio bajó un poco, usa 20-30%. Si cayó bruscamente a un soporte clave, usa 40-50%.
+  ¡Divide tus compras! No uses el 100% del capital en una sola entrada si acabas de comprar.
 
 ═══════════════════════════════════════════════════
 ANALISIS TECNICO — ETH-USDT
@@ -105,19 +112,19 @@ Capital maximo permitido: ${capitalMaxPct}% del USDT
 CRITERIOS
 ═══════════════════════════════════════════════════
 
-BUY (comprar ETH):
+BUY (comprar ETH o hacer DCA):
 - 4h y 1h alcistas + 15m confirma
+- DCA (Dollar Cost Averaging): Si el precio actual es MENOR a tu ultimo precio de compra, y rebotó en un soporte, realiza compras parciales para bajar el costo promedio.
 - Precio cerca de soporte o banda inferior Bollinger
 - RSI < 65, volumen > 100% promedio
 - Fear & Greed < 85
-- capital_pct segun fuerza de señal (15% debil → 80% muy fuerte)
+- capital_pct: usa 15-30% para primera entrada o pequeños DCA. Usa 40-80% solo si la señal es extremadamente fuerte o el precio colapsó a un soporte de 4h.
 
 SELL (vender ETH):
-- Precio en resistencia clave o banda superior Bollinger
-- RSI > 70 con señal de debilidad
-- Tendencia cambiando a bajista en 1h
-- Precio bajo al stop_loss_ref → SELL para proteger capital
-- sell_pct: 100% si señal fuerte, 50-70% si tomar ganancias parciales
+- El precio actual SUPERÓ tu último precio de compra y llegó a una resistencia clave o banda superior Bollinger.
+- Toma de ganancias (Take Profit): Vender parcialmente (sell_pct: 50-70%) si la señal no es fatal.
+- RSI > 70 con señal de debilidad en el MACD.
+- STOP LOSS VIRTUAL: Si el precio cayó DEBAJO de tu stop_loss_ref, y la tendencia (1H y 4H) cambió a bajista, haz SELL (sell_pct 100%) para proteger capital.
 
 HOLD: señal no clara, ya tienes ETH y tendencia sigue alcista, o no tienes ETH y esperas mejor entrada
 
