@@ -1105,7 +1105,7 @@ async function getDashboardData(period = 'today') {
         // Datos diarios financieros (Filtrado por Rango)
         const [dailyFinanciero] = await db.execute(`
             SELECT 
-                DATE(timestamp_cierre) as dia,
+                DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha,
                 SUM(ganancia_perdida) as pnl_dia,
                 SUM(comision) as comision_dia,
                 COUNT(*) as trades_dia,
@@ -1113,21 +1113,21 @@ async function getDashboardData(period = 'today') {
                 SUM(resultado = 'LOSS') as perdidos_dia
             FROM bot_trades 
             WHERE timestamp_cierre IS NOT NULL AND ${dfCierre}
-            GROUP BY dia 
-            ORDER BY dia DESC
+            GROUP BY fecha 
+            ORDER BY fecha DESC
         `);
 
         // Datos diarios SPOT (Filtrado por Rango)
         const [dailySpot] = await db.execute(`
             SELECT 
-                DATE(timestamp_apertura) as dia,
+                DATE_FORMAT(timestamp_apertura, '%Y-%m-%d') as fecha,
                 SUM(CASE WHEN accion = 'BUY' THEN capital_usdt ELSE 0 END) as compras_dia,
                 SUM(CASE WHEN accion = 'SELL' THEN capital_usdt ELSE 0 END) as ventas_dia,
                 COUNT(*) as trades_dia
             FROM spot_trades
             WHERE ${dfSpot}
-            GROUP BY dia
-            ORDER BY dia DESC
+            GROUP BY fecha
+            ORDER BY fecha DESC
         `);
 
         const winRateReal = winData[0].total > 0
@@ -1223,17 +1223,12 @@ async function getDashboardData(period = 'today') {
                 gananciaBruta: parseFloat(winData[0].ganancia_bruta || 0).toFixed(2),
                 perdidaBruta: parseFloat(winData[0].perdida_bruta || 0).toFixed(2),
                 comisionTotal: parseFloat(winData[0].total_comisiones || 0).toFixed(2),
-                dailyFinanciero: (dailyFinanciero || []).map(d => {
-                    const dt = new Date(d.dia);
-                    const fechaStr = isNaN(dt.getTime()) ? 'N/A' : dt.toISOString().split('T')[0];
-                    return {
-                        ...d,
-                        fecha: fechaStr,
-                        pnl_dia: parseFloat(d.pnl_dia || 0).toFixed(2),
-                        comision_dia: parseFloat(d.comision_dia || 0).toFixed(2),
-                        pnl_neto: (parseFloat(d.pnl_dia || 0) - parseFloat(d.comision_dia || 0)).toFixed(2)
-                    };
-                })
+                dailyFinanciero: (dailyFinanciero || []).map(d => ({
+                    ...d,
+                    pnl_dia: parseFloat(d.pnl_dia || 0).toFixed(2),
+                    comision_dia: parseFloat(d.comision_dia || 0).toFixed(2),
+                    pnl_neto: (parseFloat(d.pnl_dia || 0) - parseFloat(d.comision_dia || 0)).toFixed(2)
+                }))
             },
             statsSpot: {
                 total: ssTotal,
@@ -1246,17 +1241,12 @@ async function getDashboardData(period = 'today') {
                 totalVentas: parseFloat(spotFinData[0].total_ventas || 0).toFixed(2),
                 netoEth: parseFloat(spotFinData[0].neto_eth || 0).toFixed(6),
                 flujoNeto: (parseFloat(spotFinData[0].total_ventas || 0) - parseFloat(spotFinData[0].total_compras || 0)).toFixed(2),
-                daily: (dailySpot || []).map(d => {
-                    const dt = new Date(d.dia);
-                    const fechaStr = isNaN(dt.getTime()) ? 'N/A' : dt.toISOString().split('T')[0];
-                    return {
-                        ...d,
-                        fecha: fechaStr,
-                        compras_dia: parseFloat(d.compras_dia || 0).toFixed(2),
-                        ventas_dia: parseFloat(d.ventas_dia || 0).toFixed(2),
-                        balance_dia: (parseFloat(d.ventas_dia || 0) - parseFloat(d.compras_dia || 0)).toFixed(2)
-                    };
-                })
+                daily: (dailySpot || []).map(d => ({
+                    ...d,
+                    compras_dia: parseFloat(d.compras_dia || 0).toFixed(2),
+                    ventas_dia: parseFloat(d.ventas_dia || 0).toFixed(2),
+                    balance_dia: (parseFloat(d.ventas_dia || 0) - parseFloat(d.compras_dia || 0)).toFixed(2)
+                }))
             },
             statsGlobalFuturos: {
                 total: parseInt(sgFut[0].total) || 0,
