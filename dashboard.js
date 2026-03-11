@@ -201,12 +201,14 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         <!-- LEFT COLUMN: PRIMARY DATA -->
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
             
-            <div class="card">
+            ${data.chart.data.length >= 2 ? `
+            <div class="card" style="padding-bottom:1.25rem;">
                 <div class="card-header">
                     <div class="card-title">Rendimiento Acumulado</div>
                 </div>
-                <div style="height:350px; margin-top:10px;"><canvas id="mainChart"></canvas></div>
+                <div style="height:240px;"><canvas id="mainChart"></canvas></div>
             </div>
+            ` : ''}
 
             <div class="card">
                 <div class="card-header">
@@ -315,7 +317,9 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
 </div>
 
 <script>
-    const ctx = document.getElementById('mainChart').getContext('2d');
+    const canvas = document.getElementById('mainChart');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
     const gradient = ctx.createLinearGradient(0, 0, 0, 400);
     gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
     gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
@@ -350,6 +354,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             }
         }
     });
+    }
 </script>
 </body>
 </html>`;
