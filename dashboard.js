@@ -443,10 +443,12 @@ async function getDashboardData(period, userId) {
     const traderFuturos = require('./src/trader');
     const traderSpot = require('./src/spot/trader');
 
-    const [balFut, balSpot] = await Promise.all([
+    const [balFut, balSpot, ethPrecioReal] = await Promise.all([
         traderFuturos.getBalance(user).catch(() => 0),
-        traderSpot.getSpotBalance(user).catch(() => ({ usdt: 0, eth: 0 }))
+        traderSpot.getSpotBalance(user).catch(() => ({ usdt: 0, eth: 0 })),
+        traderSpot.getSpotPrice('ETH-USDT').catch(() => null)
     ]);
+    const ethPrecioEst = ethPrecioReal || 0;
 
     let tf = `user_id = ${userId}`;
     if (period === 'today') tf += ` AND DATE(timestamp_apertura) = CURDATE()`;
@@ -508,7 +510,7 @@ async function getDashboardData(period, userId) {
             COUNT(CASE WHEN accion = 'SELL' THEN 1 END) as num_ventas
         FROM spot_trades WHERE user_id = ?`, [userId]);
     const spRow = spotPnlRows[0] || {};
-    const ethPrecioEst = 2050; // precio referencia ETH/USDT
+    // ethPrecioEst ya viene del API real (definido arriba)
     const totalComprado  = parseFloat(spRow.total_comprado  || 0);
     const totalVendido   = parseFloat(spRow.total_vendido   || 0);
     const ethActual      = parseFloat(balSpot.eth || 0);

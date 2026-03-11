@@ -183,8 +183,24 @@ async function executeSell(user, decision, precioActual) {
     }
 }
 
+// Obtener precio actual de ETH en tiempo real (BingX public ticker, sin auth)
+async function getSpotPrice(symbol) {
+    try {
+        const sym = (symbol || process.env.PAR_SPOT || 'ETH-USDT').replace('-', '-');
+        const res = await axios.get(`${BASE_URL}/openApi/spot/v1/ticker/24hr`, {
+            params: { symbol: sym }
+        });
+        const ticker = (res.data?.data || [])[0];
+        return ticker ? parseFloat(ticker.lastPrice) : null;
+    } catch (e) {
+        logger.error('[SPOT] Error obteniendo precio de ETH:', e.message);
+        return null;
+    }
+}
+
 module.exports = {
     getSpotBalance,
+    getSpotPrice,
     getTodayTradesSpot,
     getUltimaCompra,
     executeBuy,
