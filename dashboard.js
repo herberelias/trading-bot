@@ -390,7 +390,27 @@ async function getDashboardData(period, userId) {
     const [sStats] = await db.execute(`SELECT COUNT(*) as total FROM spot_trades WHERE ${tf}`);
     
     // Recent Combined Activity
-    const [fTradesRaw] = await db.execute(`SELECT direccion as accion, precio_entrada, capital_usado as margen, precio_cierre, ganancia_perdida, resultado, timestamp_apertura, timestamp_cierre FROM bot_trades WHERE ${tf} ORDER BY timestamp_apertura DESC LIMIT 20`);
+    let fTradesRaw = [];
+    if (user.modo_real) {
+        // Traer de BingX REAL
+        const bingxOrders = await traderFuturos.getHistory(user, 15);
+        fTradesRaw = bingxOrders.map(o => ({
+            accion: o.side,
+            precio_entrada: o.avgPrice || o.price,
+            margen: (parseFloat(o.cumQuote) / (parseFloat(user.apalancamiento) || 10)).toFixed(2),
+            precio_cierre: o.type === 'MARKET' ? o.avgPrice : o.price, // Simplificado
+            ganancia_perdida: o.profit,
+            resultado: parseFloat(o.profit) > 0 ? 'WIN' : 'LOSS',
+            timestamp_apertura: o.updateTime,
+            timestamp_cierre: o.updateTime,
+            isReal: true
+        }));
+    } else {
+        // Traer de DB (Simulado)
+        const [rows] = await db.execute(`SELECT direccion as accion, precio_entrada, capital_usado as margen, precio_cierre, ganancia_perdida, resultado, timestamp_apertura, timestamp_cierre FROM bot_trades WHERE ${tf} ORDER BY timestamp_apertura DESC LIMIT 20`);
+        fTradesRaw = rows;
+    }
+
     const [sTradesRaw] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
 
     const fmt = (d) => new Date(d).toLocaleString('es-SV', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
@@ -399,8 +419,8 @@ async function getDashboardData(period, userId) {
     // Build separate formatted arrays BEFORE merging (avoid double-format bug)
     const tradesFuturos = fTradesRaw.map(t => ({
         accion: t.accion,
-        precioEntrada: parseFloat(t.precio_entrada).toFixed(2),
-        margen: fmtUSDT(t.margen),
+        precioEntrada: parseFloat(t.precio_entrada || 0).toFixed(2),
+        margen: t.isReal ? `$${t.margen} USDT` : fmtUSDT(t.margen),
         precioSalida: t.precio_cierre ? `$${parseFloat(t.precio_cierre).toFixed(2)}` : '--',
         pnl: t.ganancia_perdida != null ? parseFloat(t.ganancia_perdida).toFixed(2) : null,
         resultado: t.resultado || 'OPEN',

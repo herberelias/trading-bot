@@ -518,6 +518,20 @@ async function executeTrade(decision, currentPrice, user = null) {
     }
 }
 
+async function getHistory(user = null, limit = 10) {
+    try {
+        const params = {
+            symbol: process.env.PAR || 'BTC-USDT',
+            limit: limit
+        };
+        const response = await callBingX('GET', '/openApi/swap/v2/user/historyOrders', params, user);
+        return response.data?.orders || [];
+    } catch (e) {
+        logger.error(`[${user?.nombre || 'Global'}] Error al obtener historial de BingX`, e.message);
+        return [];
+    }
+}
+
 async function getOpenTradeDuration(user = null) {
     try {
         const userId = user ? user.id : 1;
@@ -537,4 +551,4 @@ async function getOpenTradeDuration(user = null) {
     }
 }
 
-module.exports = { getPositions, getBalance, getTodayTrades, executeTrade, closeTrade, updateStopLoss, cancelOpenOrders, placeTrailingStop, checkAndCloseTrades, getOpenTradeDuration };
+module.exports = { getPositions, getBalance, getTodayTrades, executeTrade, closeTrade, updateStopLoss, cancelOpenOrders, placeTrailingStop, checkAndCloseTrades, getOpenTradeDuration, getHistory };
