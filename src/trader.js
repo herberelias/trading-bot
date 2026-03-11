@@ -170,6 +170,30 @@ async function closeTrade(currentPrice) {
 }
 
 // NUEVA FUNCION: Mover stop loss de posicion abierta
+
+// Funcion para limpiar TODO (normal y gatillos) de forma garantizada en BingX
+async function cleanAllOrders(symbol) {
+    try {
+        // A. Intento V2 Normal
+        await request('DELETE', '/openApi/swap/v2/trade/allOpenOrders', { symbol });
+        
+        // B. Intento V2 con type=2 (Wait trigger orders)
+        try {
+            await request('DELETE', '/openApi/swap/v2/trade/allOpenOrders', { symbol, type: 2 });
+        } catch(e) {}
+
+        // C. Intento V1 (especifico para Stop Orders en versiones antiguas que aun viven)
+        try {
+            // BingX v1 tenia un endpoint especifico
+            await request('DELETE', '/openApi/swap/v1/trade/cancelAllStopOrders', { symbol });
+        } catch(e) {}
+
+        logger.info('Limpieza universal de ordenes completada.');
+    } catch (error) {
+        logger.error('Error en limpieza universal:', error.message);
+    }
+}
+
 async function updateStopLoss(nuevoSL, currentPrice) {
     const isReal = process.env.MODO_REAL === 'true';
     const symbol = process.env.PAR;
@@ -246,32 +270,10 @@ async function updateStopLoss(nuevoSL, currentPrice) {
 
 // NUEVA FUNCION: Cancelar ordenes abiertas (como trailing stops previos)
 async function cancelOpenOrders() {
-    try {
-        const symbol = process.env.PAR;
-        const isReal = process.env.MODO_REAL === 'true';
-
-        if (!isReal) {
-            logger.info('[SIMULADO] Cancelando ordenes abiertas');
-            return;
-        }
-
-        // Limpieza de todas las ordenes (normales y trigger)
-        await request('DELETE', '/openApi/swap/v2/trade/allOpenOrders', { symbol });
-        
-        // Verificacion adicional
-        const openRes = await request('GET', '/openApi/swap/v2/trade/openOrders', { symbol });
-        if (openRes && openRes.data && openRes.data.length > 0) {
-            for (const o of openRes.data) {
-                try {
-                    await request('DELETE', '/openApi/swap/v2/trade/order', { symbol, orderId: o.orderId });
-                } catch (err) { /* ignore */ }
-            }
-        }
-
-        logger.info('Ordenes abiertas canceladas (incluyendo triggers).');
-    } catch (error) {
-        logger.error('Error cancelando ordenes abiertas', error.message);
-    }
+    const symbol = process.env.PAR;
+    const isReal = process.env.MODO_REAL === 'true';
+    if (!isReal) return logger.info('[SIMULADO] Cancelando ordenes');
+    await cleanAllOrders(symbol);
 }
 
 // NUEVA FUNCION: Colocar Trailing Stop
