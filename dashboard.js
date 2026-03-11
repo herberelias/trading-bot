@@ -191,6 +191,51 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- IA SECCION COMPLETA: FUTUROS + SPOT EN PARALELO -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:2rem;">
+
+        <!-- IA FUTUROS -->
+        <div class="card" style="border:1px solid rgba(99,102,241,0.35);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <div style="font-size:0.65rem; font-weight:900; text-transform:uppercase; letter-spacing:1.5px; color:var(--secondary); margin-bottom:6px;">IA FUTUROS (BTC)</div>
+                    ${data.aiFuturos ? `<span class="badge ${data.aiFuturos.accion === 'LONG' ? 'b-long' : data.aiFuturos.accion === 'SHORT' ? 'b-short' : 'b-spot'}" style="font-size:1rem; padding:10px 22px;">${data.aiFuturos.accion}</span>` : ''}
+                </div>
+                ${data.aiFuturos ? `
+                <div style="text-align:right;">
+                    <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
+                    <div style="font-size:1.8rem; font-weight:900; color:var(--secondary); line-height:1;">${Math.round(data.aiFuturos.confianza * 100)}%</div>
+                    <div style="font-size:0.7rem; color:var(--warning); margin-top:3px;">${data.aiFuturos.hace}</div>
+                </div>` : ''}
+            </div>
+            ${data.aiFuturos 
+                ? `<div class="ai-box" style="font-size:0.92rem; line-height:1.8; color:#e2e8f0; max-height:200px; overflow-y:auto;">${data.aiFuturos.razon}</div>`
+                : `<div style="color:var(--text-dim); text-align:center; padding:2.5rem;">Sin señal activa</div>`
+            }
+        </div>
+
+        <!-- IA SPOT -->
+        <div class="card" style="border:1px solid rgba(16,185,129,0.35);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <div style="font-size:0.65rem; font-weight:900; text-transform:uppercase; letter-spacing:1.5px; color:var(--success); margin-bottom:6px;">IA SPOT (ETH)</div>
+                    ${data.aiSpot ? `<span class="badge ${data.aiSpot.accion === 'BUY' ? 'b-long' : data.aiSpot.accion === 'SELL' ? 'b-short' : 'b-spot'}" style="font-size:1rem; padding:10px 22px;">${data.aiSpot.accion}</span>` : ''}
+                </div>
+                ${data.aiSpot ? `
+                <div style="text-align:right;">
+                    <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
+                    <div style="font-size:1.8rem; font-weight:900; color:var(--success); line-height:1;">${Math.round(data.aiSpot.confianza * 100)}%</div>
+                    <div style="font-size:0.7rem; color:var(--warning); margin-top:3px;">${data.aiSpot.hace}</div>
+                </div>` : ''}
+            </div>
+            ${data.aiSpot 
+                ? `<div class="ai-box" style="font-size:0.92rem; line-height:1.8; color:#e2e8f0; max-height:200px; overflow-y:auto;">${data.aiSpot.razon}</div>`
+                : `<div style="color:var(--text-dim); text-align:center; padding:2.5rem;">Sin señal activa</div>`
+            }
+        </div>
+
+    </div>
+
     <!-- MAIN CONTENT GRID -->
     <div class="main-grid">
         
@@ -245,60 +290,6 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
 
         <!-- RIGHT COLUMN: INSIGHTS & UTILS -->
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
-            
-            <!-- AI PARALELO: FUTUROS + SPOT -->
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                
-                <!-- AI FUTUROS -->
-                <div class="card" style="border: 1px solid rgba(99, 102, 241, 0.3); padding:1.25rem;">
-                    <div style="font-size:0.7rem; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:var(--secondary); margin-bottom:1rem;">📊 IA FUTUROS</div>
-                    ${data.aiFuturos ? `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                            <span class="badge ${data.aiFuturos.accion === 'LONG' ? 'b-long' : data.aiFuturos.accion === 'SHORT' ? 'b-short' : 'b-spot'}" style="font-size:0.85rem; padding:8px 14px;">${data.aiFuturos.accion}</span>
-                            <div style="text-align:right;">
-                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
-                                <div style="font-size:1.1rem; font-weight:900; color:var(--secondary);">${Math.round(data.aiFuturos.confianza * 100)}%</div>
-                            </div>
-                        </div>
-                        <div class="ai-box" style="font-size:0.75rem; color:#cbd5e1; max-height:120px; overflow-y:auto;">${data.aiFuturos.razon}</div>
-                        <div style="display:flex; gap:8px; margin-top:0.75rem;">
-                            <div style="flex:1; background:var(--card-light); padding:8px; border-radius:10px; text-align:center;">
-                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">RSI</div>
-                                <div style="font-weight:800; font-size:0.9rem;">${data.aiFuturos.rsi}</div>
-                            </div>
-                            <div style="flex:1; background:var(--card-light); padding:8px; border-radius:10px; text-align:center;">
-                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">HACE</div>
-                                <div style="font-weight:800; font-size:0.75rem; color:var(--warning);">${data.aiFuturos.hace}</div>
-                            </div>
-                        </div>
-                    ` : '<div style="color:var(--text-dim); text-align:center; padding:1.5rem; font-size:0.8rem;">Sin señal</div>'}
-                </div>
-
-                <!-- AI SPOT -->
-                <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.3); padding:1.25rem;">
-                    <div style="font-size:0.7rem; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:var(--success); margin-bottom:1rem;">🔷 IA SPOT (ETH)</div>
-                    ${data.aiSpot ? `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                            <span class="badge ${data.aiSpot.accion === 'BUY' ? 'b-long' : data.aiSpot.accion === 'SELL' ? 'b-short' : 'b-spot'}" style="font-size:0.85rem; padding:8px 14px;">${data.aiSpot.accion}</span>
-                            <div style="text-align:right;">
-                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
-                                <div style="font-size:1.1rem; font-weight:900; color:var(--success);">${Math.round(data.aiSpot.confianza * 100)}%</div>
-                            </div>
-                        </div>
-                        <div class="ai-box" style="font-size:0.75rem; color:#cbd5e1; max-height:120px; overflow-y:auto;">${data.aiSpot.razon}</div>
-                        <div style="display:flex; gap:8px; margin-top:0.75rem;">
-                            <div style="flex:1; background:var(--card-light); padding:8px; border-radius:10px; text-align:center;">
-                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">RSI</div>
-                                <div style="font-weight:800; font-size:0.9rem;">${data.aiSpot.rsi}</div>
-                            </div>
-                            <div style="flex:1; background:var(--card-light); padding:8px; border-radius:10px; text-align:center;">
-                                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800;">HACE</div>
-                                <div style="font-weight:800; font-size:0.75rem; color:var(--warning);">${data.aiSpot.hace}</div>
-                            </div>
-                        </div>
-                    ` : '<div style="color:var(--text-dim); text-align:center; padding:1.5rem; font-size:0.8rem;">Sin señal</div>'}
-                </div>
-            </div>
 
             <!-- DAILY PERFORMANCE TABLE (MINI) -->
             <div class="card">
