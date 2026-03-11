@@ -393,18 +393,21 @@ async function getDashboardData(period, userId) {
     let fTradesRaw = [];
     if (user.modo_real) {
         // Traer de BingX REAL
-        const bingxOrders = await traderFuturos.getHistory(user, 15);
-        fTradesRaw = bingxOrders.map(o => ({
-            accion: o.side,
-            precio_entrada: o.avgPrice || o.price,
-            margen: (parseFloat(o.cumQuote) / (parseFloat(user.apalancamiento) || 10)).toFixed(2),
-            precio_cierre: o.type === 'MARKET' ? o.avgPrice : o.price, // Simplificado
-            ganancia_perdida: o.profit,
-            resultado: parseFloat(o.profit) > 0 ? 'WIN' : 'LOSS',
-            timestamp_apertura: o.updateTime,
-            timestamp_cierre: o.updateTime,
-            isReal: true
-        }));
+        const bingxOrders = await traderFuturos.getHistory(user, 30);
+        fTradesRaw = bingxOrders
+            .filter(o => o.status === 'FILLED') // Solo los ejecutados como en la app
+            .slice(0, 15)
+            .map(o => ({
+                accion: o.side,
+                precio_entrada: o.avgPrice || o.price,
+                margen: (parseFloat(o.cumQuote || 0) / (parseFloat(user.apalancamiento) || 10)).toFixed(2),
+                precio_cierre: o.avgPrice || o.price,
+                ganancia_perdida: o.profit,
+                resultado: parseFloat(o.profit) > 0 ? 'WIN' : 'LOSS',
+                timestamp_apertura: o.updateTime,
+                timestamp_cierre: o.updateTime,
+                isReal: true
+            }));
     } else {
         // Traer de DB (Simulado)
         const [rows] = await db.execute(`SELECT direccion as accion, precio_entrada, capital_usado as margen, precio_cierre, ganancia_perdida, resultado, timestamp_apertura, timestamp_cierre FROM bot_trades WHERE ${tf} ORDER BY timestamp_apertura DESC LIMIT 20`);
