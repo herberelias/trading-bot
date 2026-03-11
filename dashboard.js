@@ -441,10 +441,8 @@ async function getDashboardData(period, userId) {
         t.precio = parseFloat(t.precio).toFixed(2);
     });
 
-    // Charting
-    const [pnlRows] = await db.execute(`SELECT DATE_FORMAT(timestamp_cierre, '%d/%m %H:00') as x, SUM(ganancia_perdida) as y FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL GROUP BY x ORDER BY MIN(timestamp_cierre) ASC LIMIT 50`, [userId]);
-    let ac = 0;
-    const chart = { labels: pnlRows.map(r=>r.x), data: pnlRows.map(r=>(ac+=parseFloat(r.y)).toFixed(2)) };
+    // Charting (Disabled)
+    const chart = { labels: [], data: [] };
 
     // Performance List
     const [dailyRows] = await db.execute(`SELECT DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha, SUM(ganancia_perdida) as pnl, COUNT(*) as total FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL GROUP BY fecha ORDER BY fecha DESC LIMIT 10`, [userId]);

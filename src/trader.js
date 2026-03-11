@@ -524,7 +524,7 @@ async function getHistory(user = null, limit = 10) {
             symbol: process.env.PAR || 'BTC-USDT',
             limit: limit
         };
-        const response = await callBingX('GET', '/openApi/swap/v2/user/historyOrders', params, user);
+        const response = await request('GET', '/openApi/swap/v2/user/historyOrders', params, user);
         return response.data?.orders || [];
     } catch (e) {
         logger.error(`[${user?.nombre || 'Global'}] Error al obtener historial de BingX`, e.message);
