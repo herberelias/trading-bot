@@ -162,6 +162,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             <div style="font-size:0.6rem; color:var(--text-dim); text-transform:uppercase; font-weight:800; letter-spacing:1px;">ID: ${data.userId} • ${data.userRole}</div>
         </div>
         ${data.userRole === 'admin' ? `<a href="/admin" style="text-decoration:none; color:#a78bfa; border:1px solid rgba(139,92,246,0.4); padding:8px 14px; border-radius:12px; font-size:0.75rem; font-weight:800;">⚙️ ADMIN</a>` : ''}
+        <a href="/perfil" style="text-decoration:none; color:var(--text-dim); border:1px solid var(--border); padding:8px 14px; border-radius:12px; font-size:0.75rem; font-weight:800;">👤 PERFIL</a>
         <a href="/logout" style="text-decoration:none; color:var(--danger); border:1px solid var(--danger); padding:8px 14px; border-radius:12px; font-size:0.75rem; font-weight:800;">CERRAR</a>
     </div>
 </header>
@@ -733,6 +734,139 @@ app.post('/admin/user/new', requireAuth, requireAdmin, async (req, res) => {
         res.redirect('/admin?msg=Usuario+creado+exitosamente');
     } catch (e) {
         res.redirect(`/admin?msg=Error+al+crear+usuario:+${e.message}`);
+    }
+});
+
+// ═══════════════════════════════════════════
+// PERFIL DE USUARIO (todos los usuarios)
+// ═══════════════════════════════════════════
+app.get('/perfil', requireAuth, async (req, res) => {
+    const userId = req.session.userId;
+    const [rows] = await db.execute('SELECT * FROM users WHERE id = ?', [userId]);
+    const u = rows[0];
+    if (!u) return res.redirect('/logout');
+    const msg = req.query.msg || '';
+
+    const perfilHTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil — WINTRADE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; color: #e2e8f0; min-height: 100vh; }
+        .topbar { background: #0f172a; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; }
+        .topbar h1 { font-size: 1.1rem; font-weight: 900; background: linear-gradient(90deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .topbar a { color: #64748b; font-size: 0.8rem; text-decoration: none; margin-left: 20px; }
+        .topbar a:hover { color: #e2e8f0; }
+        .container { max-width: 900px; margin: 2.5rem auto; padding: 0 1.5rem; }
+        h2 { font-size: 1.4rem; font-weight: 900; margin-bottom: 0.5rem; }
+        .subtitle { font-size: 0.8rem; color: #64748b; margin-bottom: 2rem; }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 20px; padding: 2rem; margin-bottom: 1.5rem; }
+        .section-label { font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #475569; margin-bottom: 1rem; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        .field label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #64748b; }
+        .field input { background: #020617; border: 1px solid #1e293b; color: #e2e8f0; padding: 12px 14px; border-radius: 10px; font-size: 0.85rem; outline: none; width: 100%; }
+        .field input:focus { border-color: #3b82f6; }
+        .separator { height: 1px; background: #1e293b; margin: 1.5rem 0; }
+        .btn-save { margin-top: 1.5rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-weight: 800; border: none; padding: 12px 32px; border-radius: 12px; cursor: pointer; font-size: 0.9rem; width: 100%; }
+        .btn-save:hover { opacity: 0.85; }
+        .success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399; padding: 12px 20px; border-radius: 12px; margin-bottom: 1.5rem; font-size: 0.85rem; font-weight: 700; }
+        .restrict-note { font-size: 0.75rem; color: #475569; margin-top: 1rem; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid #1e293b; }
+        .user-badge { display: inline-flex; align-items: center; gap: 8px; background: #1e293b; padding: 8px 16px; border-radius: 20px; margin-bottom: 2rem; font-size: 0.8rem; font-weight: 800; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>👤 Mi Perfil</h1>
+        <div>
+            <a href="/">← Dashboard</a>
+            <a href="/logout">Cerrar sesión</a>
+        </div>
+    </div>
+    <div class="container">
+        <div class="user-badge">
+            ${u.nombre} 
+            <span style="font-size:0.65rem;color:#64748b;font-weight:600;">ID: ${u.id} • ${u.role}</span>
+        </div>
+        <h2>Mi Configuración</h2>
+        <p class="subtitle">Puedes actualizar tus API keys, parámetros de trading y contraseña.</p>
+
+        ${msg ? `<div class="success">✅ ${msg}</div>` : ''}
+
+        <form method="POST" action="/perfil/update">
+            <div class="card">
+                <div class="section-label">🔑 API Keys BingX</div>
+                <div class="form-grid">
+                    <div class="field"><label>API Key</label><input type="password" name="bingx_key" value="${u.bingx_key || ''}" placeholder="Tu API Key de BingX"></div>
+                    <div class="field"><label>Secret Key</label><input type="password" name="bingx_secret" value="${u.bingx_secret || ''}" placeholder="Tu Secret Key de BingX"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-label">⚙️ Parámetros de Trading</div>
+                <div class="form-grid">
+                    <div class="field">
+                        <label>Apalancamiento (x)</label>
+                        <input type="number" name="apalancamiento" value="${u.apalancamiento || 10}" min="1" max="125">
+                    </div>
+                    <div class="field">
+                        <label>Riesgo por trade (%)</label>
+                        <input type="number" name="riesgo_por_trade" value="${u.riesgo_por_trade || 2}" step="0.1" min="0.1" max="100">
+                    </div>
+                    <div class="field">
+                        <label>Pérdida máx diaria ($)</label>
+                        <input type="number" name="perdida_maxima_diaria" value="${u.perdida_maxima_diaria || 10}" step="0.5" min="1">
+                    </div>
+                    <div class="field">
+                        <label>Confianza mínima IA (0–1)</label>
+                        <input type="number" name="confianza_minima" value="${u.confianza_minima || 0.75}" step="0.05" min="0.5" max="1">
+                    </div>
+                </div>
+                <div class="restrict-note">
+                    🔒 El modo (Real/Simulado), estado de cuenta y rol solo puede cambiarlos el administrador.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-label">🔐 Cambiar Contraseña</div>
+                <div class="form-grid">
+                    <div class="field">
+                        <label>Nueva contraseña (dejar vacío = no cambiar)</label>
+                        <input type="text" name="password" placeholder="nueva contraseña...">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-save" type="submit">💾 Guardar mis cambios</button>
+        </form>
+    </div>
+</body>
+</html>`;
+    res.send(perfilHTML);
+});
+
+app.post('/perfil/update', requireAuth, async (req, res) => {
+    const userId = req.session.userId;
+    const { bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, password } = req.body;
+    try {
+        // Solo campos permitidos para user — NO modo_real, activo, role
+        let query = `UPDATE users SET 
+            bingx_key = ?, bingx_secret = ?, apalancamiento = ?, 
+            riesgo_por_trade = ?, perdida_maxima_diaria = ?, confianza_minima = ?`;
+        let values = [bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima];
+        if (password && password.trim() !== '') {
+            query += `, password = ?`;
+            values.push(password.trim());
+        }
+        query += ` WHERE id = ?`;
+        values.push(userId);
+        await db.execute(query, values);
+        res.redirect('/perfil?msg=Configuración+actualizada+correctamente');
+    } catch (e) {
+        res.redirect(`/perfil?msg=Error+al+guardar:+${e.message}`);
     }
 });
 
