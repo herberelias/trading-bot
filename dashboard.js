@@ -446,6 +446,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
     <button class="tab" onclick="showTab('futuros', this)">Futuros BTC</button>
     <button class="tab" onclick="showTab('spot', this)">Spot ETH</button>
     <button class="tab" onclick="showTab('estadisticas', this)">Estadísticas</button>
+    <button class="tab" onclick="showTab('finanzas', this)">Finanzas</button>
   </div>
 
   <!-- ══════════════════════════════════════ -->
@@ -743,6 +744,66 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
 
   </div>
 
+  <!-- ══════════════════════════════════════ -->
+  <!-- TAB: FINANZAS -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="section" id="tab-finanzas">
+    <div class="grid-4 mb12">
+      <div class="card metric">
+        <div class="card-title">PnL Neto Total</div>
+        <div class="metric-value" style="color:var(--primary)">$${(parseFloat(data.statsFuturos.pnlTotal) - parseFloat(data.statsFuturos.comisionTotal)).toFixed(2)}</div>
+      </div>
+      <div class="card metric">
+        <div class="card-title">Ganancia Bruta</div>
+        <div class="metric-value text-green">$${data.statsFuturos.gananciaBruta}</div>
+      </div>
+      <div class="card metric">
+        <div class="card-title">Pérdida Bruta</div>
+        <div class="metric-value text-red">$${data.statsFuturos.perdidaBruta}</div>
+      </div>
+      <div class="card metric">
+        <div class="card-title">Tarifas (Fees)</div>
+        <div class="metric-value text-orange">$${data.statsFuturos.comisionTotal}</div>
+      </div>
+    </div>
+
+    <div class="section-label">Rendimiento Financiero por Día</div>
+    <div class="card mb12" style="padding: 0; overflow-x: auto; border: 1px solid rgba(255,255,255,0.05);">
+        <table style="width:100%; border-collapse: collapse; font-size: 0.85rem; min-width: 650px;">
+            <thead style="background: rgba(255,255,255,0.08);">
+                <tr>
+                    <th style="padding: 12px 15px; text-align: left; color: var(--text-muted); font-weight: 600;">Fecha</th>
+                    <th style="padding: 12px 15px; text-align: center; color: var(--text-muted); font-weight: 600;">Efectividad</th>
+                    <th style="padding: 12px 15px; text-align: right; color: var(--text-muted); font-weight: 600;">PnL Bruto</th>
+                    <th style="padding: 12px 15px; text-align: right; color: var(--text-muted); font-weight: 600;">Comisiones</th>
+                    <th style="padding: 12px 15px; text-align: right; color: var(--text-muted); font-weight: 600;">PnL Neto</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.statsFuturos.dailyFinanciero.length > 0 ? data.statsFuturos.dailyFinanciero.map(d => `
+                <tr style="border-top: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 12px 15px; font-weight: 600; color: #fff;">${d.fecha}</td>
+                    <td style="padding: 12px 15px; text-align: center;">
+                        <span style="display:inline-block; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); font-weight: 500;">
+                            ${d.trades_dia} trades (${d.ganados_dia}W / ${d.perdidos_dia}L)
+                        </span>
+                    </td>
+                    <td style="padding: 12px 15px; text-align: right; color: ${parseFloat(d.pnl_dia) >= 0 ? 'var(--green)' : 'var(--red)'}; font-weight: 500;">
+                        ${parseFloat(d.pnl_dia) > 0 ? '+' : ''}${d.pnl_dia} USDT
+                    </td>
+                    <td style="padding: 12px 15px; text-align: right; color: #f59e0b;">
+                        -${d.comision_dia} USDT
+                    </td>
+                    <td style="padding: 12px 15px; text-align: right; font-weight: 700; color: ${parseFloat(d.pnl_neto) >= 0 ? 'var(--green)' : 'var(--red)'}">
+                        ${parseFloat(d.pnl_neto) > 0 ? '+' : ''}${d.pnl_neto} USDT
+                    </td>
+                </tr>
+                `).join('') : `<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-muted);">No hay registros financieros en el rango seleccionado</td></tr>`}
+            </tbody>
+        </table>
+    </div>
+  </div>
+
   <!-- REFRESH -->
   <div class="refresh-row">
     <button class="refresh-btn" onclick="location.reload()">↻ Actualizar ahora</button>
@@ -964,15 +1025,34 @@ async function getDashboardData(period = 'today') {
             FROM spot_trades
         `);
 
-        // WIN RATE REAL - PROBLEMA 5
+        // WIN RATE REAL - CON MÉTRICAS FINANCIERAS
         const [winData] = await db.execute(`
             SELECT
                 COUNT(*) as total,
                 SUM(resultado = 'WIN') as ganados,
                 SUM(resultado = 'LOSS') as perdidos,
-                SUM(ganancia_perdida) as pnl_total
+                SUM(ganancia_perdida) as pnl_total,
+                SUM(CASE WHEN ganancia_perdida > 0 THEN ganancia_perdida ELSE 0 END) as ganancia_bruta,
+                SUM(CASE WHEN ganancia_perdida < 0 THEN ganancia_perdida ELSE 0 END) as perdida_bruta,
+                SUM(comision) as total_comisiones
             FROM bot_trades
             WHERE timestamp_cierre IS NOT NULL
+        `);
+
+        // Datos diarios financieros
+        const [dailyFinanciero] = await db.execute(`
+            SELECT 
+                DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha,
+                SUM(ganancia_perdida) as pnl_dia,
+                SUM(comision) as comision_dia,
+                COUNT(*) as trades_dia,
+                SUM(resultado = 'WIN') as ganados_dia,
+                SUM(resultado = 'LOSS') as perdidos_dia
+            FROM bot_trades 
+            WHERE timestamp_cierre IS NOT NULL
+            GROUP BY fecha 
+            ORDER BY fecha DESC
+            LIMIT 14
         `);
 
         const winRateReal = winData[0].total > 0
@@ -1064,7 +1144,16 @@ async function getDashboardData(period = 'today') {
                 tradesCerrados: winData[0].total || 0,
                 ganados: winData[0].ganados || 0,
                 perdidos: winData[0].perdidos || 0,
-                pnlTotal: parseFloat(winData[0].pnl_total || 0).toFixed(2)
+                pnlTotal: parseFloat(winData[0].pnl_total || 0).toFixed(2),
+                gananciaBruta: parseFloat(winData[0].ganancia_bruta || 0).toFixed(2),
+                perdidaBruta: parseFloat(winData[0].perdida_bruta || 0).toFixed(2),
+                comisionTotal: parseFloat(winData[0].total_comisiones || 0).toFixed(2),
+                dailyFinanciero: dailyFinanciero.map(d => ({
+                    ...d,
+                    pnl_dia: parseFloat(d.pnl_dia || 0).toFixed(2),
+                    comision_dia: parseFloat(d.comision_dia || 0).toFixed(2),
+                    pnl_neto: (parseFloat(d.pnl_dia || 0) - parseFloat(d.comision_dia || 0)).toFixed(2)
+                }))
             },
             statsSpot: {
                 total: ssTotal,

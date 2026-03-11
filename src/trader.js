@@ -374,6 +374,7 @@ async function checkAndCloseTrades() {
             const filledOrder = recentOrders.find(o => o.side === closeSide && parseFloat(o.price) > 0);
             
             let precioCierre = filledOrder ? parseFloat(filledOrder.price) : null;
+            let comision = filledOrder ? Math.abs(parseFloat(filledOrder.commission || 0)) : 0;
             
             if (!precioCierre) {
                 try {
@@ -404,9 +405,10 @@ async function checkAndCloseTrades() {
                     timestamp_cierre = NOW(),
                     precio_cierre = ?,
                     ganancia_perdida = ?,
+                    comision = ?,
                     resultado = ?
                 WHERE id = ?
-            `, [precioCierre, gananciaPerdida, resultado, trade.id]);
+            `, [precioCierre, gananciaPerdida, comision, resultado, trade.id]);
 
             logger.info(`Trade ${trade.id} cerrado en BD: ${resultado} | PnL: ${gananciaPerdida.toFixed(2)} USDT`);
         }

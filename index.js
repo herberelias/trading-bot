@@ -14,6 +14,9 @@ async function runBot() {
         logger.info(`========================================`);
         logger.info(`Iniciando ciclo: ${par} | ${new Date().toISOString()}`);
 
+        // Sincronizar trades cerrados
+        await trader.checkAndCloseTrades();
+
         // 1. Obtener velas de mercado (3 timeframes en paralelo)
         const [candles15m, candles1h, candles4h] = await Promise.all([
             market.getCandles15m(par),
