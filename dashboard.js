@@ -244,14 +244,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         <!-- LEFT COLUMN: PRIMARY DATA -->
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
             
-            ${data.chart.data.length >= 2 ? `
-            <div class="card" style="padding-bottom:1.25rem;">
-                <div class="card-header">
-                    <div class="card-title">Rendimiento Acumulado</div>
-                </div>
-                <div style="height:240px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            ` : ''}
+
 
             <div class="card">
             <!-- TABLAS SEPARADAS 2 COL -->
@@ -352,46 +345,6 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
     </div>
 </div>
 
-<script>
-    const canvas = document.getElementById('mainChart');
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
-    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ${JSON.stringify(data.chart.labels)},
-            datasets: [{
-                label: 'PnL',
-                data: ${JSON.stringify(data.chart.data)},
-                borderColor: '#3b82f6',
-                borderWidth: 4,
-                backgroundColor: gradient,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 0,
-                pointBackgroundColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            interaction: { intersect: false },
-            plugins: { 
-                legend: { display: false }, 
-                tooltip: { enabled: false } 
-            },
-            scales: {
-                y: { display: false, grid: { display: false } },
-                x: { display: false, grid: { display: false } }
-            }
-        }
-    });
-    }
-</script>
 </body>
 </html>`;
 
