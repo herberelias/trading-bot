@@ -161,6 +161,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             <div style="font-weight:800; font-size:0.85rem;">${data.userName}</div>
             <div style="font-size:0.6rem; color:var(--text-dim); text-transform:uppercase; font-weight:800; letter-spacing:1px;">ID: ${data.userId} • ${data.userRole}</div>
         </div>
+        ${data.userRole === 'admin' ? `<a href="/admin" style="text-decoration:none; color:#a78bfa; border:1px solid rgba(139,92,246,0.4); padding:8px 14px; border-radius:12px; font-size:0.75rem; font-weight:800;">⚙️ ADMIN</a>` : ''}
         <a href="/logout" style="text-decoration:none; color:var(--danger); border:1px solid var(--danger); padding:8px 14px; border-radius:12px; font-size:0.75rem; font-weight:800;">CERRAR</a>
     </div>
 </header>
@@ -554,6 +555,186 @@ app.post('/login', async (req, res) => {
     } catch (e) { res.send(loginHTML('Error de sistema')); }
 });
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
+
+// ═══════════════════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════════════════
+function requireAdmin(req, res, next) {
+    if (req.session && req.session.loggedIn && req.session.userRole === 'admin') return next();
+    res.status(403).send('<h2 style="font-family:sans-serif;padding:2rem;color:red;">⛔ Acceso denegado. Solo administradores.</h2>');
+}
+
+app.get('/admin', requireAuth, requireAdmin, async (req, res) => {
+    const [users] = await db.execute('SELECT * FROM users ORDER BY id ASC');
+    const msg = req.query.msg || '';
+
+    const adminHTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — WINTRADE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; color: #e2e8f0; min-height: 100vh; }
+        .topbar { background: #0f172a; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; }
+        .topbar h1 { font-size: 1.1rem; font-weight: 900; background: linear-gradient(90deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .topbar a { color: #64748b; font-size: 0.8rem; text-decoration: none; }
+        .topbar a:hover { color: #e2e8f0; }
+        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
+        h2 { font-size: 1.4rem; font-weight: 900; margin-bottom: 1.5rem; color: #f8fafc; }
+        .user-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .user-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 10px; }
+        .user-name { font-size: 1.1rem; font-weight: 800; }
+        .badge-role { font-size: 0.65rem; font-weight: 900; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        .badge-admin { background: rgba(139,92,246,0.2); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+        .badge-user  { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        .field label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #64748b; }
+        .field input, .field select { background: #020617; border: 1px solid #1e293b; color: #e2e8f0; padding: 10px 14px; border-radius: 10px; font-size: 0.85rem; outline: none; width: 100%; }
+        .field input:focus, .field select:focus { border-color: #3b82f6; }
+        .field input[type="password"] { letter-spacing: 2px; }
+        .btn-save { margin-top: 1.25rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-weight: 800; border: none; padding: 10px 26px; border-radius: 12px; cursor: pointer; font-size: 0.85rem; }
+        .btn-save:hover { opacity: 0.85; }
+        .btn-new { background: linear-gradient(135deg, #10b981, #3b82f6); color: white; font-weight: 800; border: none; padding: 12px 28px; border-radius: 14px; cursor: pointer; margin-bottom: 2rem; font-size: 0.9rem; }
+        .success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399; padding: 12px 20px; border-radius: 12px; margin-bottom: 1.5rem; font-size: 0.85rem; font-weight: 700; }
+        .separator { height: 1px; background: #1e293b; margin: 1rem 0; }
+        .section-label { font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #475569; margin: 1rem 0 0.75rem; }
+        .toggle-wrap { display: flex; align-items: center; gap: 10px; margin-top: 0.5rem; }
+        .toggle-wrap label { cursor: pointer; font-size: 0.8rem; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>⚙️ WINTRADE ADMIN</h1>
+        <div style="display:flex;gap:20px;align-items:center;">
+            <a href="/">← Dashboard</a>
+            <a href="/logout">Cerrar sesión</a>
+        </div>
+    </div>
+    <div class="container">
+        <h2>Gestión de Usuarios y Configuración</h2>
+        ${msg ? `<div class="success">✅ ${msg}</div>` : ''}
+
+        <!-- NUEVO USUARIO -->
+        <details style="background:#0f172a; border:1px solid #1e293b; border-radius:20px; padding:1.5rem; margin-bottom:1.5rem;">
+            <summary style="cursor:pointer; font-weight:800; font-size:1rem;">➕ Crear nuevo usuario</summary>
+            <form method="POST" action="/admin/user/new" style="margin-top:1.25rem;">
+                <div class="form-grid">
+                    <div class="field"><label>Nombre usuario</label><input name="nombre" required placeholder="ej: carlos123"></div>
+                    <div class="field"><label>Contraseña</label><input type="text" name="password" required placeholder="contraseña123"></div>
+                    <div class="field"><label>Rol</label>
+                        <select name="role"><option value="user">user</option><option value="admin">admin</option></select>
+                    </div>
+                    <div class="field"><label>BingX API Key</label><input name="bingx_key" placeholder="API_KEY..."></div>
+                    <div class="field"><label>BingX Secret</label><input name="bingx_secret" placeholder="SECRET..."></div>
+                    <div class="field"><label>Apalancamiento (x)</label><input type="number" name="apalancamiento" value="10" min="1" max="125"></div>
+                    <div class="field"><label>Riesgo por trade (%)</label><input type="number" name="riesgo_por_trade" value="2" step="0.1" min="0.1" max="100"></div>
+                    <div class="field"><label>Pérdida máx diaria ($)</label><input type="number" name="perdida_maxima_diaria" value="10" step="0.5"></div>
+                    <div class="field"><label>Confianza mínima IA (0-1)</label><input type="number" name="confianza_minima" value="0.75" step="0.05" min="0" max="1"></div>
+                    <div class="field"><label>Modo Real</label>
+                        <select name="modo_real"><option value="0">Simulado</option><option value="1">Real</option></select>
+                    </div>
+                </div>
+                <button class="btn-save" type="submit">Crear Usuario</button>
+            </form>
+        </details>
+
+        <!-- USUARIOS EXISTENTES -->
+        ${users.map(u => `
+        <div class="user-card">
+            <div class="user-header">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div class="user-name">${u.nombre}</div>
+                    <span class="badge-role ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
+                    <span style="font-size:0.7rem; color:${u.activo ? '#34d399' : '#f87171'}; font-weight:700;">${u.activo ? '● Activo' : '● Inactivo'}</span>
+                </div>
+                <div style="font-size:0.75rem; color:#475569;">ID: ${u.id}</div>
+            </div>
+            <form method="POST" action="/admin/user/${u.id}/update">
+                <div class="section-label">🔑 API Keys BingX</div>
+                <div class="form-grid">
+                    <div class="field"><label>API Key</label><input type="password" name="bingx_key" value="${u.bingx_key || ''}" placeholder="API_KEY..."></div>
+                    <div class="field"><label>Secret Key</label><input type="password" name="bingx_secret" value="${u.bingx_secret || ''}" placeholder="SECRET..."></div>
+                </div>
+                <div class="separator"></div>
+                <div class="section-label">⚙️ Configuración de Trading</div>
+                <div class="form-grid">
+                    <div class="field"><label>Apalancamiento (x)</label><input type="number" name="apalancamiento" value="${u.apalancamiento || 10}" min="1" max="125"></div>
+                    <div class="field"><label>Riesgo por trade (%)</label><input type="number" name="riesgo_por_trade" value="${u.riesgo_por_trade || 2}" step="0.1" min="0.1" max="100"></div>
+                    <div class="field"><label>Pérdida máx diaria ($)</label><input type="number" name="perdida_maxima_diaria" value="${u.perdida_maxima_diaria || 10}" step="0.5"></div>
+                    <div class="field"><label>Confianza mínima IA (0-1)</label><input type="number" name="confianza_minima" value="${u.confianza_minima || 0.75}" step="0.05" min="0" max="1"></div>
+                    <div class="field"><label>Modo</label>
+                        <select name="modo_real">
+                            <option value="0" ${!u.modo_real ? 'selected' : ''}>Simulado</option>
+                            <option value="1" ${u.modo_real ? 'selected' : ''}>Real</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Estado</label>
+                        <select name="activo">
+                            <option value="1" ${u.activo ? 'selected' : ''}>Activo</option>
+                            <option value="0" ${!u.activo ? 'selected' : ''}>Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="separator"></div>
+                <div class="section-label">🔐 Seguridad</div>
+                <div class="form-grid">
+                    <div class="field"><label>Nueva contraseña (dejar vacío = no cambiar)</label><input type="text" name="password" placeholder="nueva contraseña..."></div>
+                    <div class="field"><label>Rol</label>
+                        <select name="role">
+                            <option value="user" ${u.role === 'user' ? 'selected' : ''}>user</option>
+                            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn-save" type="submit">💾 Guardar cambios de ${u.nombre}</button>
+            </form>
+        </div>
+        `).join('')}
+    </div>
+</body>
+</html>`;
+    res.send(adminHTML);
+});
+
+// Actualizar usuario existente
+app.post('/admin/user/:id/update', requireAuth, requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, modo_real, activo, password, role } = req.body;
+    try {
+        let query = `UPDATE users SET 
+            bingx_key = ?, bingx_secret = ?, apalancamiento = ?, riesgo_por_trade = ?,
+            perdida_maxima_diaria = ?, confianza_minima = ?, modo_real = ?, activo = ?, role = ?`;
+        let values = [bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, modo_real, activo, role];
+        if (password && password.trim() !== '') {
+            query += `, password = ?`;
+            values.push(password.trim());
+        }
+        query += ` WHERE id = ?`;
+        values.push(id);
+        await db.execute(query, values);
+        res.redirect('/admin?msg=Usuario+actualizado+correctamente');
+    } catch (e) {
+        res.redirect(`/admin?msg=Error+al+guardar:+${e.message}`);
+    }
+});
+
+// Crear nuevo usuario
+app.post('/admin/user/new', requireAuth, requireAdmin, async (req, res) => {
+    const { nombre, password, role, bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, modo_real } = req.body;
+    try {
+        await db.execute(
+            `INSERT INTO users (nombre, password, role, bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, modo_real, activo) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+            [nombre, password, role || 'user', bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, modo_real || 0]
+        );
+        res.redirect('/admin?msg=Usuario+creado+exitosamente');
+    } catch (e) {
+        res.redirect(`/admin?msg=Error+al+crear+usuario:+${e.message}`);
+    }
+});
 
 app.get('/', requireAuth, async (req, res) => {
     const period = req.query.period || 'today';
