@@ -130,7 +130,7 @@ const loginHTML = (error = '') => `<!DOCTYPE html>
 // ═══════════════════════════════════════════
 // DASHBOARD HTML
 // ═══════════════════════════════════════════
-const dashboardHTML = (data) => `<!DOCTYPE html>
+const dashboardHTML = (data, period) => `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -426,6 +426,12 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
       <div class="live-badge"><div class="live-dot"></div>LIVE</div>
     </div>
     <div class="header-right">
+      <select id="periodFilter" onchange="window.location.href='/?period='+this.value" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.8rem; background: var(--bg); cursor: pointer; outline: none; margin-right: 15px;">
+        <option value="today" ${period === 'today' ? 'selected' : ''}>Hoy</option>
+        <option value="7days" ${period === '7days' ? 'selected' : ''}>Últimos 7 Días</option>
+        <option value="30days" ${period === '30days' ? 'selected' : ''}>Últimos 30 Días</option>
+        <option value="all" ${period === 'all' ? 'selected' : ''}>Desde el inicio</option>
+      </select>
       <span class="update-time">🕐 ${data.timestamp}</span>
       <a href="/logout" class="logout-btn">Salir</a>
     </div>
@@ -462,7 +468,7 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
         <div class="metric-change ${data.modoSpot === 'REAL' ? 'change-up' : 'change-neutral'} badge">${data.modoSpot}</div>
       </div>
       <div class="card metric">
-        <div class="card-title">Trades Hoy</div>
+        <div class="card-title">Trades Rango</div>
         <div class="metric-value">${data.totalTradesToday}</div>
         <div class="metric-label">Futuros + Spot</div>
       </div>
@@ -540,7 +546,7 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
           <div class="trade-price">${t.precio} USDT</div>
           <div class="trade-qty">${t.detalle}</div>
         </div>
-      </div>`).join('') : `<div class="no-data">Sin trades hoy</div>`}
+      </div>`).join('') : `<div class="no-data">Sin trades Rango</div>`}
     </div>
 
   </div>
@@ -551,7 +557,7 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
   <div class="section" id="tab-futuros">
     <div class="grid-4 mb12">
       <div class="card metric">
-        <div class="card-title">Trades Hoy</div>
+        <div class="card-title">Trades Rango</div>
         <div class="metric-value">${data.statsFuturos.total}</div>
       </div>
       <div class="card metric">
@@ -589,7 +595,7 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
 
     <div class="section-label">Estadísticas Futuros</div>
     <div class="card mb12">
-      <div class="stat-item"><span class="stat-key">Total trades hoy</span><span class="stat-val">${data.statsFuturos.total}</span></div>
+      <div class="stat-item"><span class="stat-key">Total trades Rango</span><span class="stat-val">${data.statsFuturos.total}</span></div>
       <div class="stat-item"><span class="stat-key">LONG ejecutados</span><span class="stat-val text-green">${data.statsFuturos.longs}</span></div>
       <div class="stat-item"><span class="stat-key">SHORT ejecutados</span><span class="stat-val text-red">${data.statsFuturos.shorts}</span></div>
       <div class="stat-item"><span class="stat-key">Total (Histórico Cerrados)</span><span class="stat-val">${data.statsFuturos.tradesCerrados}</span></div>\n      <div class="stat-item"><span class="stat-key">Trades ganadores</span><span class="stat-val text-green">${data.statsFuturos.ganados}</span></div>
@@ -604,7 +610,7 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
   <div class="section" id="tab-spot">
     <div class="grid-4 mb12">
       <div class="card metric">
-        <div class="card-title">Trades Hoy</div>
+        <div class="card-title">Trades Rango</div>
         <div class="metric-value">${data.statsSpot.total}</div>
       </div>
       <div class="card metric">
@@ -641,10 +647,10 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
 
     <div class="section-label">Estadísticas Spot</div>
     <div class="card mb12">
-      <div class="stat-item"><span class="stat-key">Total trades hoy</span><span class="stat-val">${data.statsSpot.total}</span></div>
+      <div class="stat-item"><span class="stat-key">Total trades Rango</span><span class="stat-val">${data.statsSpot.total}</span></div>
       <div class="stat-item"><span class="stat-key">Compras (BUY)</span><span class="stat-val text-green">${data.statsSpot.buys}</span></div>
       <div class="stat-item"><span class="stat-key">Ventas (SELL)</span><span class="stat-val text-red">${data.statsSpot.sells}</span></div>
-      <div class="stat-item"><span class="stat-key">Decisiones totales hoy</span><span class="stat-val">${data.statsSpot.decisiones}</span></div>
+      <div class="stat-item"><span class="stat-key">Decisiones totales Rango</span><span class="stat-val">${data.statsSpot.decisiones}</span></div>
       <div class="stat-item"><span class="stat-key">HOLD / Bloqueados</span><span class="stat-val text-muted">${data.statsSpot.holds}</span></div>
       <div class="stat-item"><span class="stat-key">Tasa de ejecución</span><span class="stat-val">${data.statsSpot.tasaEjecucion}%</span></div>
       <div class="stat-item"><span class="stat-key">Último precio compra ETH</span><span class="stat-val">${data.ultimaCompraEth || 'N/A'} USDT</span></div>
@@ -694,17 +700,17 @@ const dashboardHTML = (data) => `<!DOCTYPE html>
       </div>
     </div>
 
-    <div class="section-label">Actividad IA — Hoy</div>
+    <div class="section-label">Actividad IA — Rango</div>
     <div class="grid-2 mb12">
       <div class="card">
-        <div class="card-title">Decisiones Futuros Hoy</div>
+        <div class="card-title">Decisiones Futuros Rango</div>
         <div class="stat-item"><span class="stat-key">Total decisiones</span><span class="stat-val">${data.statsFuturos.decisiones}</span></div>
         <div class="stat-item"><span class="stat-key">Ejecutadas</span><span class="stat-val text-green">${data.statsFuturos.total}</span></div>
         <div class="stat-item"><span class="stat-key">HOLD / Bloqueadas</span><span class="stat-val text-muted">${data.statsFuturos.holds}</span></div>
         <div class="stat-item"><span class="stat-key">Tasa ejecución</span><span class="stat-val">${data.statsFuturos.tasaEjecucion}%</span></div>
       </div>
       <div class="card">
-        <div class="card-title">Decisiones Spot Hoy</div>
+        <div class="card-title">Decisiones Spot Rango</div>
         <div class="stat-item"><span class="stat-key">Total decisiones</span><span class="stat-val">${data.statsSpot.decisiones}</span></div>
         <div class="stat-item"><span class="stat-key">Ejecutadas</span><span class="stat-val text-green">${data.statsSpot.total}</span></div>
         <div class="stat-item"><span class="stat-key">HOLD / Bloqueadas</span><span class="stat-val text-muted">${data.statsSpot.holds}</span></div>
@@ -746,7 +752,28 @@ setInterval(() => {
 // ═══════════════════════════════════════════
 // OBTENER DATOS DESDE MYSQL
 // ═══════════════════════════════════════════
-async function getDashboardData() {
+async function getDashboardData(period = 'today') {
+    let dfFut = 'DATE(timestamp_apertura) = CURDATE()';
+    let dfSpot = 'DATE(timestamp_apertura) = CURDATE()';
+    let dfDecFut = 'DATE(timestamp) = CURDATE()';
+    let dfDecSpot = 'DATE(fecha) = CURDATE()';
+
+    if (period === '7days') {
+        dfFut = 'timestamp_apertura >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+        dfSpot = 'timestamp_apertura >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+        dfDecFut = 'timestamp >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+        dfDecSpot = 'fecha >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+    } else if (period === '30days') {
+        dfFut = 'timestamp_apertura >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
+        dfSpot = 'timestamp_apertura >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
+        dfDecFut = 'timestamp >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
+        dfDecSpot = 'fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
+    } else if (period === 'all') {
+        dfFut = '1=1';
+        dfSpot = '1=1';
+        dfDecFut = '1=1';
+        dfDecSpot = '1=1';
+    }
     try {
         const fmt = (d) => {
             if (!d) return 'N/A';
@@ -767,17 +794,17 @@ async function getDashboardData() {
             precioEth = await marketSpot.getCurrentPrice('ETH-USDT');
         } catch(e) {}
 
-        // Trades futuros hoy
+        // Trades futuros Rango
         const [tradesFuturos] = await db.execute(`
             SELECT par, direccion AS accion, precio_entrada, stop_loss, take_profit, capital_usado AS cantidad, timestamp_apertura
-            FROM bot_trades WHERE DATE(timestamp_apertura) = CURDATE()
+            FROM bot_trades WHERE ${dfFut}
             ORDER BY timestamp_apertura DESC LIMIT 20
         `);
 
-        // Trades spot hoy
+        // Trades spot Rango
         const [tradesSpot] = await db.execute(`
             SELECT par, accion, precio_entrada, capital_usdt, cantidad_eth, timestamp_apertura
-            FROM spot_trades WHERE DATE(timestamp_apertura) = CURDATE()
+            FROM spot_trades WHERE ${dfSpot}
             ORDER BY timestamp_apertura DESC LIMIT 20
         `);
 
@@ -785,7 +812,7 @@ async function getDashboardData() {
         const [posicion] = await db.execute(`
             SELECT direccion as tipo, precio_entrada as entrada, stop_loss as sl,
                    take_profit as tp, capital_usado as qty
-            FROM bot_trades WHERE DATE(timestamp_apertura) = CURDATE()
+            FROM bot_trades WHERE ${dfFut}
             AND timestamp_cierre IS NULL
             AND direccion IN ('LONG','SHORT') ORDER BY timestamp_apertura DESC LIMIT 1
         `);
@@ -808,32 +835,32 @@ async function getDashboardData() {
             ORDER BY timestamp_apertura DESC LIMIT 1
         `);
 
-        // Stats futuros hoy
+        // Stats futuros Rango
         const [sfHoy] = await db.execute(`
             SELECT COUNT(*) as total,
                    SUM(direccion='LONG') as longs,
                    SUM(direccion='SHORT') as shorts
-            FROM bot_trades WHERE DATE(timestamp_apertura) = CURDATE()
+            FROM bot_trades WHERE ${dfFut}
         `);
 
-        // Decisiones futuros hoy
+        // Decisiones futuros Rango
         const [dfHoy] = await db.execute(`
             SELECT COUNT(*) as total, SUM(ejecutado=1) as ejecutadas
-            FROM bot_decisions WHERE DATE(timestamp) = CURDATE()
+            FROM bot_decisions WHERE ${dfDecFut}
         `);
 
-        // Stats spot hoy
+        // Stats spot Rango
         const [ssHoy] = await db.execute(`
             SELECT COUNT(*) as total,
                    SUM(accion='BUY') as buys,
                    SUM(accion='SELL') as sells
-            FROM spot_trades WHERE DATE(timestamp_apertura) = CURDATE()
+            FROM spot_trades WHERE ${dfSpot}
         `);
 
-        // Decisiones spot hoy
+        // Decisiones spot Rango
         const [dsHoy] = await db.execute(`
             SELECT COUNT(*) as total, SUM(ejecutado=1) as ejecutadas
-            FROM spot_decisions WHERE DATE(fecha) = CURDATE()
+            FROM spot_decisions WHERE ${dfDecSpot}
         `);
 
         // Stats globales futuros
