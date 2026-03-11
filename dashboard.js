@@ -259,17 +259,28 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                     <div class="table-wrap">
                         <table>
                             <thead>
-                                <tr><th>Operación</th><th>Precio</th><th>Margen</th><th>Hora</th></tr>
+                                <tr>
+                                    <th>Operación</th>
+                                    <th>P. Entrada</th>
+                                    <th>Margen</th>
+                                    <th>P. Salida</th>
+                                    <th>PnL</th>
+                                    <th>Fecha</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 ${data.tradesFuturos.length > 0 ? data.tradesFuturos.map(t => `
                                     <tr>
-                                        <td><span class="badge ${t.accion === 'LONG' ? 'b-long' : 'b-short'}">${t.accion}</span></td>
-                                        <td><b>$${t.precio}</b></td>
-                                        <td>${t.detalle}</td>
-                                        <td style="color:var(--text-dim); font-size:0.7rem;">${t.hora}</td>
+                                        <td><span class="badge ${t.accion === 'LONG' ? 'b-long' : t.accion === 'SHORT' ? 'b-short' : 'b-spot'}">${t.accion}</span></td>
+                                        <td><b>$${t.precioEntrada}</b></td>
+                                        <td style="color:var(--text-dim);">${t.margen}</td>
+                                        <td>${t.precioSalida !== '--' ? `<b>${t.precioSalida}</b>` : '<span style="color:var(--text-dim)">En curso</span>'}</td>
+                                        <td style="font-weight:800; color:${t.pnl === null ? 'var(--text-dim)' : parseFloat(t.pnl) >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                                            ${t.pnl !== null ? (parseFloat(t.pnl) >= 0 ? '+' : '') + '$' + t.pnl : '--'}
+                                        </td>
+                                        <td style="color:var(--text-dim); font-size:0.7rem;">${t.fechaApertura}</td>
                                     </tr>
-                                `).join('') : '<tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-dim);">Sin operaciones</td></tr>'}
+                                `).join('') : '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-dim);">Sin operaciones</td></tr>'}
                             </tbody>
                         </table>
                     </div>
@@ -379,8 +390,8 @@ async function getDashboardData(period, userId) {
     const [sStats] = await db.execute(`SELECT COUNT(*) as total FROM spot_trades WHERE ${tf}`);
     
     // Recent Combined Activity
-    const [fTradesRaw] = await db.execute(`SELECT 'FUTURES' as bot, direccion as accion, precio_entrada as precio, capital_usado as margen, resultado, ganancia_perdida as pnl, timestamp_apertura as hora FROM bot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
-    const [sTradesRaw] = await db.execute(`SELECT 'SPOT' as bot, accion, precio_entrada as precio, capital_usdt as monto_usdt, 'FINALIZADO' as resultado, 0 as pnl, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
+    const [fTradesRaw] = await db.execute(`SELECT direccion as accion, precio_entrada, capital_usado as margen, precio_cierre, ganancia_perdida, resultado, timestamp_apertura, timestamp_cierre FROM bot_trades WHERE ${tf} ORDER BY timestamp_apertura DESC LIMIT 20`);
+    const [sTradesRaw] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
 
     const fmt = (d) => new Date(d).toLocaleString('es-SV', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
     const fmtUSDT = (v) => parseFloat(v || 0) > 0 ? `$${parseFloat(v).toFixed(2)} USDT` : '--';
@@ -388,9 +399,13 @@ async function getDashboardData(period, userId) {
     // Build separate formatted arrays BEFORE merging (avoid double-format bug)
     const tradesFuturos = fTradesRaw.map(t => ({
         accion: t.accion,
-        precio: parseFloat(t.precio).toFixed(2),
-        detalle: fmtUSDT(t.margen),
-        hora: fmt(t.hora)
+        precioEntrada: parseFloat(t.precio_entrada).toFixed(2),
+        margen: fmtUSDT(t.margen),
+        precioSalida: t.precio_cierre ? `$${parseFloat(t.precio_cierre).toFixed(2)}` : '--',
+        pnl: t.ganancia_perdida != null ? parseFloat(t.ganancia_perdida).toFixed(2) : null,
+        resultado: t.resultado || 'OPEN',
+        fechaApertura: fmt(t.timestamp_apertura),
+        fechaCierre: t.timestamp_cierre ? fmt(t.timestamp_cierre) : '--'
     }));
     const tradesSpot = sTradesRaw.map(t => ({
         accion: t.accion,
