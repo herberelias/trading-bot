@@ -196,7 +196,17 @@ async function updateStopLoss(nuevoSL, currentPrice) {
                 continue;
             }
 
-            logger.info(`Moviendo SL de posicion ${positionSide}: ${slActual} -> ${nuevoSL}`);
+            let adjustedSL = parseFloat(nuevoSL);
+            if (positionSide === 'LONG' && adjustedSL >= parseFloat(currentPrice)) {
+                adjustedSL = parseFloat((currentPrice * 0.9995).toFixed(2));
+                logger.info(`Ajustando SL a ${adjustedSL} (no puede ser >= precio actual ${currentPrice})`);
+            }
+            if (positionSide === 'SHORT' && adjustedSL <= parseFloat(currentPrice)) {
+                adjustedSL = parseFloat((currentPrice * 1.0005).toFixed(2));
+                logger.info(`Ajustando SL a ${adjustedSL} (no puede ser <= precio actual ${currentPrice})`);
+            }
+
+            logger.info(`Moviendo SL de posicion ${positionSide}: ${slActual} -> ${adjustedSL}`);
 
             // BingX: cancelar ordenes SL existentes y crear nueva
             // Primero cancelamos ordenes abiertas de tipo STOP_MARKET
@@ -217,11 +227,11 @@ async function updateStopLoss(nuevoSL, currentPrice) {
                 positionSide,
                 type: 'STOP_MARKET',
                 quantity: qty.toFixed(4),
-                stopPrice: nuevoSL,
+                stopPrice: adjustedSL,
                 workingType: 'MARK_PRICE'
             });
 
-            logger.info(`SL actualizado exitosamente a ${nuevoSL} para posicion ${positionSide}`);
+            logger.info(`SL actualizado exitosamente a ${adjustedSL} para posicion ${positionSide}`);
         }
     } catch (error) {
         logger.error('Error al mover stop loss', error);
@@ -286,7 +296,8 @@ async function placeTrailingStop(side, trailingPct) {
             positionSide: side,
             type: 'TRAILING_STOP_MARKET',
             quantity: qty,
-            callbackRate: callbackRate,
+            priceRate: callbackRate,
+            workingType: 'MARK_PRICE',
             timestamp: Date.now()
         };
 
