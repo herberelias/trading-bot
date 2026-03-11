@@ -983,7 +983,7 @@ async function getDashboardData(period = 'today') {
         const [pnlHist] = await db.execute(`
             SELECT DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha, SUM(ganancia_perdida) as pnl
             FROM bot_trades WHERE timestamp_cierre IS NOT NULL
-            GROUP BY DATE(timestamp_cierre) ORDER BY fecha ASC
+            GROUP BY fecha ORDER BY fecha ASC
         `);
 
         let pnlAcumulado = 0;
