@@ -748,9 +748,10 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
   <!-- TAB: FINANZAS -->
   <!-- ══════════════════════════════════════ -->
   <div class="section" id="tab-finanzas">
+    <div class="section-label">Resumen Futuros BTC</div>
     <div class="grid-4 mb12">
       <div class="card metric">
-        <div class="card-title">PnL Neto Total</div>
+        <div class="card-title">PnL Neto Futuros</div>
         <div class="metric-value" style="color:var(--primary)">$${(parseFloat(data.statsFuturos.pnlTotal) - parseFloat(data.statsFuturos.comisionTotal)).toFixed(2)}</div>
       </div>
       <div class="card metric">
@@ -767,8 +768,28 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
       </div>
     </div>
 
-    <div class="section-label">Rendimiento Financiero por Día</div>
-    <div class="card mb12" style="padding: 0; overflow-x: auto; border: 1px solid rgba(255,255,255,0.05);">
+    <div class="section-label">Resumen Spot ETH</div>
+    <div class="grid-4 mb12">
+      <div class="card metric">
+        <div class="card-title">Inversión (Compras)</div>
+        <div class="metric-value text-red">$${data.statsSpot.totalCompras}</div>
+      </div>
+      <div class="card metric">
+        <div class="card-title">Recuperado (Ventas)</div>
+        <div class="metric-value text-green">$${data.statsSpot.totalVentas}</div>
+      </div>
+      <div class="card metric">
+        <div class="card-title">Flujo de Caja Neto</div>
+        <div class="metric-value" style="color:var(--primary)">$${data.statsSpot.flujoNeto}</div>
+      </div>
+      <div class="card metric">
+        <div class="card-title">ETH Acumulado (Rango)</div>
+        <div class="metric-value text-orange">${(data.statsSpot.buys - data.statsSpot.sells)} trades</div>
+      </div>
+    </div>
+
+    <div class="section-label">Rendimiento Futuros por Día</div>
+    <div class="card mb24" style="padding: 0; overflow-x: auto; border: 1px solid rgba(255,255,255,0.05);">
         <table style="width:100%; border-collapse: collapse; font-size: 0.85rem; min-width: 650px;">
             <thead style="background: rgba(255,255,255,0.08);">
                 <tr>
@@ -798,7 +819,35 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                         ${parseFloat(d.pnl_neto) > 0 ? '+' : ''}${d.pnl_neto} USDT
                     </td>
                 </tr>
-                `).join('') : `<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-muted);">No hay registros financieros en el rango seleccionado</td></tr>`}
+                `).join('') : `<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-muted);">No hay registros de futuros</td></tr>`}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-label">Actividad Spot por Día</div>
+    <div class="card mb12" style="padding: 0; overflow-x: auto; border: 1px solid rgba(255,255,255,0.05);">
+        <table style="width:100%; border-collapse: collapse; font-size: 0.85rem; min-width: 650px;">
+            <thead style="background: rgba(255,255,255,0.08);">
+                <tr>
+                    <th style="padding: 12px 15px; text-align: left; color: var(--text-muted); font-weight: 600;">Fecha</th>
+                    <th style="padding: 12px 15px; text-align: center; color: var(--text-muted); font-weight: 600;">Trades</th>
+                    <th style="padding: 12px 15px; text-align: right; color: var(--text-muted); font-weight: 600;">Invertido (BUY)</th>
+                    <th style="padding: 12px 15px; text-align: right; color: var(--text-muted); font-weight: 600;">Vendido (SELL)</th>
+                    <th style="padding: 12px 15px; text-align: right; color: var(--text-muted); font-weight: 600;">Balance Flujo</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.statsSpot.daily.length > 0 ? data.statsSpot.daily.map(d => `
+                <tr style="border-top: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 12px 15px; font-weight: 600; color: #fff;">${d.fecha}</td>
+                    <td style="padding: 12px 15px; text-align: center;">${d.trades_dia} acciones</td>
+                    <td style="padding: 12px 15px; text-align: right; color: var(--red);">${d.compras_dia} USDT</td>
+                    <td style="padding: 12px 15px; text-align: right; color: var(--green);">${d.ventas_dia} USDT</td>
+                    <td style="padding: 12px 15px; text-align: right; font-weight: 700; color: ${parseFloat(d.balance_dia) >= 0 ? 'var(--green)' : 'var(--red)'}">
+                        ${parseFloat(d.balance_dia) > 0 ? '+' : ''}${d.balance_dia} USDT
+                    </td>
+                </tr>
+                `).join('') : `<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-muted);">No hay registros de spot</td></tr>`}
             </tbody>
         </table>
     </div>
@@ -1042,6 +1091,16 @@ async function getDashboardData(period = 'today') {
             WHERE timestamp_cierre IS NOT NULL AND ${dfCierre}
         `);
 
+        // FUTUROS: MÉTRICAS SPOT (Filtrado por Rango)
+        const [spotFinData] = await db.execute(`
+            SELECT 
+                SUM(CASE WHEN accion = 'BUY' THEN capital_usdt ELSE 0 END) as total_compras,
+                SUM(CASE WHEN accion = 'SELL' THEN capital_usdt ELSE 0 END) as total_ventas,
+                COUNT(*) as trades_count
+            FROM spot_trades
+            WHERE ${dfSpot}
+        `);
+
         // Datos diarios financieros (Filtrado por Rango)
         const [dailyFinanciero] = await db.execute(`
             SELECT 
@@ -1054,6 +1113,19 @@ async function getDashboardData(period = 'today') {
             FROM bot_trades 
             WHERE timestamp_cierre IS NOT NULL AND ${dfCierre}
             GROUP BY fecha 
+            ORDER BY fecha DESC
+        `);
+
+        // Datos diarios SPOT (Filtrado por Rango)
+        const [dailySpot] = await db.execute(`
+            SELECT 
+                DATE_FORMAT(timestamp_apertura, '%Y-%m-%d') as fecha,
+                SUM(CASE WHEN accion = 'BUY' THEN capital_usdt ELSE 0 END) as compras_dia,
+                SUM(CASE WHEN accion = 'SELL' THEN capital_usdt ELSE 0 END) as ventas_dia,
+                COUNT(*) as trades_dia
+            FROM spot_trades
+            WHERE ${dfSpot}
+            GROUP BY fecha
             ORDER BY fecha DESC
         `);
 
@@ -1163,7 +1235,16 @@ async function getDashboardData(period = 'today') {
                 sells: parseInt(ssHoy[0].sells) || 0,
                 decisiones: dsTotal,
                 holds: dsTotal - dsEjec,
-                tasaEjecucion: dsTotal > 0 ? ((dsEjec / dsTotal) * 100).toFixed(0) : 0
+                tasaEjecucion: dsTotal > 0 ? ((dsEjec / dsTotal) * 100).toFixed(0) : 0,
+                totalCompras: parseFloat(spotFinData[0].total_compras || 0).toFixed(2),
+                totalVentas: parseFloat(spotFinData[0].total_ventas || 0).toFixed(2),
+                flujoNeto: (parseFloat(spotFinData[0].total_ventas || 0) - parseFloat(spotFinData[0].total_compras || 0)).toFixed(2),
+                daily: (dailySpot || []).map(d => ({
+                    ...d,
+                    compras_dia: parseFloat(d.compras_dia || 0).toFixed(2),
+                    ventas_dia: parseFloat(d.ventas_dia || 0).toFixed(2),
+                    balance_dia: (parseFloat(d.ventas_dia || 0) - parseFloat(d.compras_dia || 0)).toFixed(2)
+                }))
             },
             statsGlobalFuturos: {
                 total: parseInt(sgFut[0].total) || 0,
