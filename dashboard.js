@@ -262,7 +262,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                                 <th>Bot/Módulo</th>
                                 <th>Operación</th>
                                 <th>P. Entrada</th>
-                                <th>Cantidad</th>
+                                <th>Monto</th>
                                 <th>Timestamp</th>
                             </tr>
                         </thead>
@@ -399,7 +399,7 @@ async function getDashboardData(period, userId) {
     
     // Recent Combined Activity
     const [fTrades] = await db.execute(`SELECT 'FUTURES' as bot, direccion as accion, precio_entrada as precio, capital_usado as detalle, resultado, ganancia_perdida as pnl, timestamp_apertura as hora FROM bot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
-    const [sTrades] = await db.execute(`SELECT 'SPOT' as bot, accion, precio_entrada as precio, cantidad_eth as detalle, 'FINALIZADO' as resultado, 0 as pnl, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
+    const [sTrades] = await db.execute(`SELECT 'SPOT' as bot, accion, precio_entrada as precio, capital_usdt as detalle, 'FINALIZADO' as resultado, 0 as pnl, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
     
     const allTrades = [...fTrades, ...sTrades].sort((a,b) => b.hora - a.hora).slice(0, 25);
     const fmt = (d) => new Date(d).toLocaleString('es-SV', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
@@ -409,6 +409,9 @@ async function getDashboardData(period, userId) {
         t.pnl = t.bot === 'FUTURES' && t.resultado !== 'OPEN' ? parseFloat(t.pnl || 0).toFixed(2) : '--';
         t.hora = fmt(t.hora);
         t.precio = parseFloat(t.precio).toFixed(2);
+        // Format the detalle column with context
+        const monto = parseFloat(t.detalle || 0);
+        t.detalle = monto > 0 ? `$${monto.toFixed(2)} USDT` : '--';
     });
 
     // Charting
