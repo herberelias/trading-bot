@@ -263,7 +263,6 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                                 <th>Operación</th>
                                 <th>P. Entrada</th>
                                 <th>Cantidad</th>
-                                <th>PnL / Estado</th>
                                 <th>Timestamp</th>
                             </tr>
                         </thead>
@@ -271,17 +270,12 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                             ${data.trades.length > 0 ? data.trades.map(t => `
                                 <tr>
                                     <td><span style="color:var(--text-dim); font-weight:700; font-size:0.75rem;">${t.bot}</span></td>
-                                    <td><span class="badge ${t.badgeClass}">${t.accion}</span></td>
+                                    <td><span class="badge ${t.accion === 'LONG' || t.accion === 'BUY' ? 'b-long' : 'b-short'}">${t.accion}</span></td>
                                     <td><b>$${t.precio}</b></td>
                                     <td>${t.detalle}</td>
-                                    <td>
-                                        <span style="font-weight:800; color:${parseFloat(t.pnl) > 0 ? 'var(--success)' : parseFloat(t.pnl) < 0 ? 'var(--danger)' : 'var(--text-dim)'}">
-                                            ${t.pnl !== '--' ? (parseFloat(t.pnl) >= 0 ? '+' : '') + t.pnl + ' USDT' : t.resultado}
-                                        </span>
-                                    </td>
                                     <td style="color:var(--text-dim); font-size:0.7rem;">${t.hora}</td>
                                 </tr>
-                            `).join('') : '<tr><td colspan="6" style="text-align:center; padding:3rem; color:var(--text-dim);">No se registraron movimientos en este periodo.</td></tr>'}
+                            `).join('') : '<tr><td colspan="5" style="text-align:center; padding:3rem; color:var(--text-dim);">No se registraron movimientos en este periodo.</td></tr>'}
                         </tbody>
                     </table>
                 </div>
