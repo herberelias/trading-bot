@@ -160,8 +160,11 @@ async function executeSell(user, decision, precioActual) {
             ethBalance = lastTrade[0]?.cantidad_eth || 0;
         }
 
-        if (ethBalance < 0.001) {
-            logger.warn(`[SPOT] No hay ETH suficiente para vender en cuenta de ${user.nombre}`);
+        const sellPct = (decision.sell_pct || 100) / 100;
+        const qtyToSell = ethBalance * sellPct;
+
+        if (qtyToSell < 0.001) {
+            logger.warn(`[SPOT] Cantidad a vender muy pequeña (${qtyToSell.toFixed(6)}) para ${user.nombre}`);
             return;
         }
 
@@ -170,16 +173,16 @@ async function executeSell(user, decision, precioActual) {
                 symbol,
                 side: 'SELL',
                 type: 'MARKET',
-                quantity: ethBalance.toFixed(5)
+                quantity: qtyToSell.toFixed(5)
             });
         }
 
         await db.execute(`
             INSERT INTO spot_trades (user_id, accion, precio_entrada, capital_usdt, cantidad_eth, cargo_ia, timestamp_apertura)
             VALUES (?, 'SELL', ?, ?, ?, ?, NOW())
-        `, [user.id, precioActual, ethBalance * precioActual, ethBalance, decision.confianza]);
+        `, [user.id, precioActual, qtyToSell * precioActual, qtyToSell, decision.confianza]);
 
-        logger.info(`[SPOT] Venta ejecutada para ${user.nombre}: ${ethBalance} ETH en ${precioActual}`);
+        logger.info(`[SPOT] Venta ejecutada para ${user.nombre}: ${qtyToSell.toFixed(6)} ETH (${(sellPct * 100).toFixed(0)}%) en ${precioActual}`);
 
     } catch (e) {
         logger.error(`[SPOT] Error en executeSell para ${user.nombre}:`, e.message);

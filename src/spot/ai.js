@@ -48,23 +48,10 @@ async function consultarGeminiSpot(
         : '  No calculadas';
 
     const fearStr = fearGreed ? `${fearGreed.value}/100 — ${fearGreed.descripcion}` : 'No disponible';
-    const capitalMaxPct = process.env.CAPITAL_MAXIMO_PCT || 80;
+    const capitalMaxPct = process.env.CAPITAL_MAXIMO_PCT || 90;
 
-    const prompt = `Eres un trader profesional especializado en trading spot de criptomonedas.
-Operas ETH-USDT en BingX SPOT (sin apalancamiento, sin liquidacion).
-Tu objetivo es acumular USDT comprando ETH barato y vendiendo caro.
-Tienes LIBERTAD TOTAL para decidir cuando comprar, cuanto, cuando vender y cuanto.
-
-REGLAS SPOT (MUY IMPORTANTE):
-- Solo puedes BUY (comprar ETH), SELL (vender ETH) o HOLD
-- NO hay SHORT, NO hay apalancamiento, NO hay liquidacion
-- Prioriza la tendencia y el RSI de 1D (DIARIO) sobre los de menor timeframe.
-- stop_loss_ref es referencial — si el precio baja a ese nivel decides SELL en el siguiente ciclo
-- Puedes tomar ganancias parciales (sell_pct < 100)
-- ESTRATEGIA DCA (Dollar Cost Averaging):
-  Si el precio actual es más bajo que tu ultimo precio de compra (promediar a la baja), y la tendencia sigue siendo alcista pero con un retroceso, usa un porcentaje de USDT (capital_pct) para promediar.
-  Si el precio bajó un poco, usa 20-30%. Si cayó bruscamente a un soporte clave, usa 40-50%.
-  ¡Divide tus compras! No uses el 100% del capital en una sola entrada si acabas de comprar.
+    const prompt = `Eres un INVERSIONISTA EXPERTO en Trading SPOT de Criptomonedas.
+Operas ETH-USDT en BingX SPOT. Tu objetivo es la ACUMULACION DE RIQUEZA a largo plazo.
 
 ═══════════════════════════════════════════════════
 NOTICIAS RELEVANTES (Contexto Fundamental)
@@ -72,89 +59,39 @@ NOTICIAS RELEVANTES (Contexto Fundamental)
 ${noticiasTrump || 'No hay noticias recientes.'}
 
 ═══════════════════════════════════════════════════
-ANALISIS TECNICO — ETH-USDT
+ANALISIS TECNICO (PRIORIDAD DIARIA)
 ═══════════════════════════════════════════════════
-
-TIMEFRAME 1D (DIARIO - CRITICO):
-- Tendencia: ${tendencia1d}
-- RSI: ${indicators1d ? indicators1d.rsi : 'N/A'} ${rsi1d > 70 ? '[SOBRECOMPRADO]' : rsi1d < 30 ? '[SOBREVENDIDO]' : ''}
-- Bollinger: ${indicators1d ? indicators1d.bb_position : 'N/A'}
-
-TIMEFRAME 4H (macro):
-- Tendencia: ${tendencia4h}
-- RSI: ${indicators4h ? indicators4h.rsi : 'N/A'} | EMA20: ${indicators4h ? indicators4h.ema20 : 'N/A'} | EMA50: ${indicators4h ? indicators4h.ema50 : 'N/A'}
-- Bollinger: ${indicators4h ? indicators4h.bb_position : 'N/A'} | Ancho: ${indicators4h ? indicators4h.bb_width : 'N/A'}%
-
-TIMEFRAME 1H:
-- Tendencia: ${tendencia1h}
-- RSI: ${indicators1h.rsi} ${rsi1h > 70 ? '[SOBRECOMPRADO]' : rsi1h < 30 ? '[SOBREVENDIDO]' : ''}
-- EMA20: ${indicators1h.ema20} | EMA50: ${indicators1h.ema50}
-- MACD: ${indicators1h.macd} | Histogram: ${indicators1h.histogram}
-- Bollinger: ${indicators1h.bb_position} | Superior: ${indicators1h.bb_upper} | Inferior: ${indicators1h.bb_lower}
-
-TIMEFRAME 15M:
-- RSI: ${indicators15m.rsi} ${rsi15m > 70 ? '[SOBRECOMPRADO]' : rsi15m < 30 ? '[SOBREVENDIDO]' : ''}
-- EMA20: ${indicators15m.ema20} | EMA50: ${indicators15m.ema50}
-- MACD: ${indicators15m.macd} | Histogram: ${indicators15m.histogram}
-- Bollinger: ${indicators15m.bb_position} | Superior: ${indicators15m.bb_upper} | Inferior: ${indicators15m.bb_lower}
-- Volumen vs promedio: ${indicators15m.volumeVsAvg}%
+TIMEFRAME 1D (CRITICO): Tendencia ${tendencia1d} | RSI: ${rsi1d}
+TIMEFRAME 4H: Tendencia ${tendencia4h}
+TIMEFRAME 1H: Tendencia ${tendencia1h}
 
 PRECIO ACTUAL ETH: ${precioActual} USDT
 
-RESISTENCIAS:
-${resistenciasStr}
-
-SOPORTES:
-${soportesStr}
-
-Max/Min 24h: ${soportesResistencias ? soportesResistencias.max24h : 'N/A'} / ${soportesResistencias ? soportesResistencias.min24h : 'N/A'} USDT
-
 ═══════════════════════════════════════════════════
-SENTIMIENTO
+REGLAS DE ORO (MODO AGRESIVO ACUMULACION)
 ═══════════════════════════════════════════════════
 
-Fear & Greed: ${fearStr}
-Sesion: ${sesionMercado ? sesionMercado.descripcion : 'N/A'} — ${sesionMercado ? sesionMercado.actividad : 'N/A'}
+1. COMPRA (BUY) Y DCA AGRESIVO:
+- Si 1D es alcista o estamos en un soporte diario mayor, compra fuerte.
+- capital_pct: puedes usar hasta el 90% del USDT si la señal diaria es muy clara.
+- DCA: Si el precio es menor a tu ultima compra y estamos en soporte, promedia a la baja sin miedo.
+
+2. VENTA (SELL) PARA MAXIMIZAR PROFIT:
+- No vendas por migajas. El objetivo es vender cuando el RSI 1D este sobrecomprado (>70) o lleguemos a resistencias historicas.
+- TOMA DE GANANCIAS POR ESCALAS: 
+  * Vende el 50% (sell_pct: 50) cuando tengas un profit > 5%. 
+  * El otro 50% dejalo para un profit > 10% o hasta que la tendencia diaria cambie.
+- No uses Stop Loss estrechos. En spot, preferimos mantener (HODL) si el fundamental es bueno y promediar si cae.
+
+3. HOLD:
+- Mantener es la clave si la tendencia 1D sigue alcista. No te salgas temprano por pequeñas correcciones de 15m o 1H.
 
 ═══════════════════════════════════════════════════
-CUENTA SPOT
+RESPUESTA — SOLO JSON SIN TEXTO EXTRA
 ═══════════════════════════════════════════════════
-
-${balanceStr}
-Posicion: ${posicionStr}
-Hoy: ${historialStr}
-Capital maximo permitido: ${capitalMaxPct}% del USDT
-
-═══════════════════════════════════════════════════
-CRITERIOS
-═══════════════════════════════════════════════════
-
-BUY (comprar ETH o hacer DCA):
-- 1D alcista o rebotando en soporte clave. RSI 1D no sobrecomprado.
-- 1H confirma la fuerza.
-- DCA (Dollar Cost Averaging): Si el precio actual es MENOR a tu ultimo precio de compra, y rebotó en un soporte, realiza compras parciales para bajar el costo promedio.
-- Precio cerca de soporte o banda inferior Bollinger
-- RSI < 65, volumen > 100% promedio
-- Fear & Greed < 85
-- capital_pct: usa 15-30% para primera entrada o pequeños DCA. Usa 40-80% solo si la señal es extremadamente fuerte o el precio colapsó a un soporte de 4h/1D.
-
-SELL (vender ETH):
-- El precio actual SUPERÓ tu último precio de compra y llegó a una resistencia clave o banda superior Bollinger de 1D o 4H.
-- Toma de ganancias (Take Profit): Vender parcialmente (sell_pct: 50-70%) si la señal no es fatal.
-- RSI > 70 con señal de debilidad en el MACD.
-- STOP LOSS VIRTUAL: Si el precio cayó DEBAJO de tu stop_loss_ref, y la tendencia (1H y 4H) cambió a bajista, haz SELL (sell_pct 100%) para proteger capital.
-
-HOLD: señal no clara, ya tienes ETH y tendencia sigue alcista, o no tienes ETH y esperas mejor entrada
-
-═══════════════════════════════════════════════════
-RESPUESTA — SOLO JSON
-═══════════════════════════════════════════════════
-
-BUY:  { "accion": "BUY",  "confianza": 0-1, "capital_pct": 15-80, "sell_pct": null, "precio_objetivo": numero, "stop_loss_ref": numero, "razon": "..." }
-SELL: { "accion": "SELL", "confianza": 0-1, "capital_pct": null,  "sell_pct": 25-100, "precio_objetivo": null, "stop_loss_ref": null, "razon": "..." }
-HOLD: { "accion": "HOLD", "confianza": 0-1, "capital_pct": null,  "sell_pct": null, "precio_objetivo": null, "stop_loss_ref": null, "razon": "..." }
-
-Sin texto extra ni backticks.`;
+BUY:  { "accion": "BUY",  "confianza": 0-1, "capital_pct": 20-90, "sell_pct": null, "precio_objetivo": numero, "stop_loss_ref": numero, "razon": "..." }
+SELL: { "accion": "SELL", "confianza": 0-1, "capital_pct": null,  "sell_pct": 50-100, "precio_objetivo": null, "stop_loss_ref": null, "razon": "..." }
+HOLD: { "accion": "HOLD", "confianza": 0-1, "capital_pct": null,  "sell_pct": null, "precio_objetivo": null, "stop_loss_ref": null, "razon": "..." }`;
 
     let retries = 3;
     let attempt = 0;
@@ -174,7 +111,7 @@ Sin texto extra ni backticks.`;
             decision.capital_pct = parseFloat(decision.capital_pct) || 50;
             decision.sell_pct = parseFloat(decision.sell_pct) || 100;
 
-            const capitalMax = parseFloat(process.env.CAPITAL_MAXIMO_PCT) || 80;
+            const capitalMax = parseFloat(process.env.CAPITAL_MAXIMO_PCT) || 90;
             if (decision.capital_pct > capitalMax) decision.capital_pct = capitalMax;
 
             return decision;

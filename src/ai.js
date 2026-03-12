@@ -69,133 +69,64 @@ async function consultarGemini(
         ? `${fearGreed.value}/100 — ${fearGreed.descripcion}`
         : 'No disponible';
 
-    const prompt = `Eres un trader profesional experto en futuros perpetuos de criptomonedas con mas de 10 años de experiencia.
+    const prompt = `Eres un trader profesional experto en el mercado de FUTUROS DE ALTA RENTABILIDAD.
 Operas BTC-USDT en BingX con apalancamiento ${process.env.APALANCAMIENTO}x.
-Tienes LIBERTAD TOTAL: decides que hacer, cuanto arriesgar, cuando entrar, salir y mover el stop loss.
+Tu objetivo es MAXIMIZAR LAS GANANCIAS. No buscas trades pequeños, buscas CAPTURAR TENDENCIAS FUERTES.
 
 ═══════════════════════════════════════════════════
-NOTICIAS RELEVANTES (Contexto Fundamental)
+NOTICIAS RELEVANTES (Fundamental Context)
 ═══════════════════════════════════════════════════
 ${noticiasTrump || 'No hay noticias recientes.'}
 
 ═══════════════════════════════════════════════════
 ANALISIS TECNICO MULTI-TIMEFRAME
 ═══════════════════════════════════════════════════
-
-TIMEFRAME 4H (macro tendencia):
-- Tendencia: ${tendencia4h}
-- RSI(14): ${indicators4h ? indicators4h.rsi : 'N/A'} ${rsi4h > 70 ? '[SOBRECOMPRADO]' : rsi4h < 30 ? '[SOBREVENDIDO]' : ''}
-- EMA20: ${indicators4h ? indicators4h.ema20 : 'N/A'} | EMA50: ${indicators4h ? indicators4h.ema50 : 'N/A'}
-- MACD Histogram: ${indicators4h ? indicators4h.histogram : 'N/A'} ${indicators4h && parseFloat(indicators4h.histogram) > 0 ? '(momentum alcista)' : '(momentum bajista)'}
-- Bollinger: precio en ${indicators4h ? indicators4h.bb_position : 'N/A'} | Ancho banda: ${indicators4h ? indicators4h.bb_width : 'N/A'}%
-
-TIMEFRAME 1H (tendencia principal):
-- Tendencia: ${tendencia1h}
-- RSI(14): ${indicators1h.rsi} ${rsi1h > 70 ? '[SOBRECOMPRADO]' : rsi1h < 30 ? '[SOBREVENDIDO]' : ''}
-- EMA20: ${indicators1h.ema20} | EMA50: ${indicators1h.ema50}
-- MACD: ${indicators1h.macd} | Signal: ${indicators1h.signal} | Histogram: ${indicators1h.histogram}
-- Bollinger: precio en ${indicators1h.bb_position} | Superior: ${indicators1h.bb_upper} | Inferior: ${indicators1h.bb_lower} | Ancho: ${indicators1h.bb_width}%
-
-TIMEFRAME 15M (señal de entrada):
-- RSI(14): ${indicators15m.rsi} ${rsi15m > 70 ? '[SOBRECOMPRADO]' : rsi15m < 30 ? '[SOBREVENDIDO]' : ''}
-- EMA20: ${indicators15m.ema20} | EMA50: ${indicators15m.ema50}
-- MACD: ${indicators15m.macd} | Signal: ${indicators15m.signal} | Histogram: ${indicators15m.histogram}
-- Bollinger: precio en ${indicators15m.bb_position} | Superior: ${indicators15m.bb_upper} | Inferior: ${indicators15m.bb_lower} | Ancho: ${indicators15m.bb_width}%
-- Volumen vs promedio: ${indicators15m.volumeVsAvg}%
-- Volatilidad ATR (15m): ${indicators15m.atr || 'N/A'} USDT
+TIMEFRAME 4H (Macrotendencia): ${tendencia4h} | RSI: ${rsi4h}
+TIMEFRAME 1H (Principal): ${tendencia1h} | RSI: ${rsi1h}
+TIMEFRAME 15M (Ejecución): RSI: ${rsi15m} | ATR: ${indicators15m.atr}
 
 PRECIO ACTUAL BTC: ${precioActual} USDT
 
 ═══════════════════════════════════════════════════
-NIVELES CLAVE DE PRECIO
+ESTADO DE LA CUENTA Y POSICIONES
 ═══════════════════════════════════════════════════
-
-RESISTENCIAS (precio debe superar para subir):
-${resistenciasStr}
-
-SOPORTES (precio debe defender para no caer):
-${soportesStr}
-
-Max 24h: ${soportesResistencias ? soportesResistencias.max24h : 'N/A'} USDT
-Min 24h: ${soportesResistencias ? soportesResistencias.min24h : 'N/A'} USDT
-
-═══════════════════════════════════════════════════
-SENTIMIENTO Y CONDICIONES DE MERCADO
-═══════════════════════════════════════════════════
-
-Indice Miedo y Codicia: ${fearStr}
-Funding Rate: ${fundingStr}
-Sesion de mercado: ${sesionMercado ? sesionMercado.descripcion : 'N/A'} — Actividad: ${sesionMercado ? sesionMercado.actividad : 'N/A'}
-
-═══════════════════════════════════════════════════
-ESTADO DE LA CUENTA
-═══════════════════════════════════════════════════
-
 Balance disponible: ${balance} USDT
-Apalancamiento: ${process.env.APALANCAMIENTO}x
-Modo: ${process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO'}
-
 Posiciones abiertas:
 ${posicionesStr}
 
-Performance hoy: ${historialStr}
-
 ═══════════════════════════════════════════════════
-ACCIONES DISPONIBLES
+REGLAS DE ORO PARA MAXIMIZAR DINERO (ESTRATEGIA TIBURON)
 ═══════════════════════════════════════════════════
 
-1. LONG    — Abrir posicion larga
-2. SHORT   — Abrir posicion corta
-3. HOLD    — No hacer nada
-4. CLOSE   — Cerrar todas las posiciones abiertas
-5. MOVE_SL — Mover stop loss de posicion abierta
+1. ENTRADAS AGRESIVAS:
+- No esperes a que todo sea perfecto si hay una ruptura de soporte/resistencia clara con volumen.
+- SHORT se permite si estamos en resistencia de 1H/4H aunque 4H sea alcista, siempre que 15m/1H confirmen agotamiento.
+- El apalancamiento es tu herramienta: entra con fuerza en señales de alta confianza (>80%).
 
-═══════════════════════════════════════════════════
-CRITERIOS PROFESIONALES
-═══════════════════════════════════════════════════
+2. GESTION DE RIESGO DINAMICA (RIESGO TOTAL):
+- Si la señal es EXTREMADAMENTE fuerte y el sentimiento es favorable (Trump pro-crypto + volumen), puedes usar riesgo_pct de hasta el 10%. 
+- En condiciones normales usa 3-5%.
 
-ENTRADAS (LONG/SHORT):
-- LONG: Los 3 timeframes (4h, 1h, 15m) alineados al alza. O rebote fuerte en soporte 1h/4h.
-- SHORT: No necesitas que 4h sea bajista si el precio esta en resistencia EXTREMA de 4h o 1h y el 15m+1h ya muestran debilidad (EMA20 < EMA50 en 15m). No operes SHORT si el RSI 4h esta subiendo con mucha fuerza.
-- Volumen > 110% del promedio al entrar.
-- RSI no en zona extrema contraria.
-- Entrada LONG cerca de soporte, SHORT cerca de resistencia.
-- Evitar entrar si Fear & Greed > 85 (euforia extrema) para LONG.
-- Evitar entrar si Fear & Greed < 15 (panico extremo) para SHORT.
+3. DEJA CORRER LAS GANANCIAS (EL SECRETO):
+- OBJETIVO MINIMO: 3% a 5% de movimiento de precio (sin apalancamiento). Esto equivale a 30%-50% de ganancia en cuenta.
+- NO CIERRES por miedo. Solo usa CLOSE si hay un cambio de tendencia real (ej: cruce de EMAs en contra en 15m) o si el precio toca una resistencia/soporte mayor y rebota.
+- PnL > 1.0% (mov. precio) → MOVE_SL a breakeven obligatoriamente. Trade gratuito.
+- PnL > 2.5% (mov. precio) → MOVE_SL a +1.5% para asegurar ganancias mínimas jugosas.
 
-STOP LOSS:
-- Siempre en nivel tecnico (soporte para LONG, resistencia para SHORT).
-- Minimo 0.3% de distancia, maximo 2.5%.
-- NUNCA mas alla del 80% de distancia al precio de liquidacion.
-
-TAKE PROFIT Y CIERRE (HOLD LONGER):
-- El usuario quiere mantener las posiciones mas tiempo para maximizar ganancias.
-- OBJETIVO MINIMO: Busca por lo menos un 2% de movimiento del precio (sin apalancamiento) antes de considerar CLOSE por ganancias, a menos que haya un cambio de tendencia claro o se alcance una resistencia/soporte mayor.
-- Para LONG: en resistencia mayor o si hay agotamiento tras un >2% de subida.
-- Para SHORT: en soporte mayor o si hay agotamiento tras un >2% de caída.
-
-MOVE_SL (gestionar posicion ganadora):
-- PnL > 1.0% → mover SL a breakeven (proteccion temprana).
-- PnL > 2.0% → mover SL a +1.0% (asegurar profit parcial).
-- CIERRE POR TIEMPO: Solo ordena CLOSE si la posicion lleva > 12 horas estancada o en contra pero sin tocar SL. Si hay tendencia a favor, MANTEN LA POSICION.
-
-RIESGO POR TRADE (riesgo_pct):
-- Alta conviccion + indicadores alineados + volumen alto → hasta 8%
-- Condiciones moderadas → 1% a 3%
-- Cualquier duda → HOLD
+4. CIERRE POR TIEMPO:
+- Solo si la posicion lleva > 24 horas sin moverse y el mercado esta muerto (volumen bajo).
 
 ═══════════════════════════════════════════════════
 FORMATO DE RESPUESTA — SOLO JSON SIN TEXTO EXTRA
 ═══════════════════════════════════════════════════
-
 {
   "accion": "LONG" | "SHORT" | "HOLD" | "CLOSE" | "MOVE_SL",
   "confianza": 0.00 a 1.00,
-  "riesgo_pct": 0.5 a 10,
+  "riesgo_pct": 1 a 10,
   "stop_loss": precio numerico o null,
-  "take_profit": precio numerico o null,
+  "take_profit": precio numerico o null (apunta alto, resistencia de 4H o mas),
   "nuevo_stop_loss": precio numerico o null (solo para MOVE_SL),
-  "razon": "analisis completo: timeframes, niveles clave, noticias de Trump, por que este riesgo_pct y por que se mantiene o cierra la posicion"
+  "razon": "analisis de tiburon: por que esta entrada capturara una tendencia grande, por que este riesgo alto y por que no cerramos aun"
 }`;
 
     let retries = 3;
