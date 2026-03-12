@@ -330,13 +330,24 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                         </div>
                     </div>
                     <!-- TOTAL NETO -->
-                    <div style="background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.08)); border:1px solid rgba(16,185,129,0.25); border-radius:14px; padding:14px 18px; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <div style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">PNL TOTAL (Realizado + ETH en cartera)</div>
-                            <div style="font-size:0.7rem; color:var(--text-dim);">Ventas + Valor ETH actual − Compras</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.25rem;">
+                        <div style="background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.08)); border:1px solid rgba(16,185,129,0.25); border-radius:14px; padding:14px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">PNL TOTAL</div>
+                                <div style="font-size:0.6rem; color:var(--text-dim);">Realizado + Cartera</div>
+                            </div>
+                            <div style="font-size:1.2rem; font-weight:900; color:${parseFloat(data.spotPnl.pnlTotal) >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                                ${parseFloat(data.spotPnl.pnlTotal) >= 0 ? '+' : ''}$${data.spotPnl.pnlTotal}
+                            </div>
                         </div>
-                        <div style="font-size:1.6rem; font-weight:900; color:${parseFloat(data.spotPnl.pnlTotal) >= 0 ? 'var(--success)' : 'var(--danger)'};">
-                            ${parseFloat(data.spotPnl.pnlTotal) >= 0 ? '+' : ''}$${data.spotPnl.pnlTotal}
+                        <div style="background:rgba(0,0,0,0.25); border:1px solid var(--warning); border-radius:14px; padding:14px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="font-size:0.65rem; color:var(--warning); font-weight:800;">ÚLTIMA COMPRA</div>
+                                <div style="font-size:0.6rem; color:var(--text-dim);">Precio Ref. IA</div>
+                            </div>
+                            <div style="font-size:1.2rem; font-weight:900; color:var(--text);">
+                                $${data.spotPnl.ultimaCompra}
+                            </div>
                         </div>
                     </div>
 
@@ -560,6 +571,9 @@ async function getDashboardData(period, userId) {
             ethActual:      ethActual.toFixed(6)
         };
     }
+
+    const lastPurchasePrice = await traderSpot.getUltimaCompra(user.id);
+    spotPnl.ultimaCompra = lastPurchasePrice ? lastPurchasePrice.toFixed(2) : '--';
 
     // AI Futuros: ultima decision de ESTE usuario
     const [aiRowsFut] = await db.execute(
