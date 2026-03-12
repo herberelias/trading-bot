@@ -431,26 +431,15 @@ async function getDashboardData(period, userId) {
             const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 50);
             let orders = Array.isArray(bingxSpot) ? bingxSpot : [];
             
-            // Filtro de estado: Aceptamos casi todo lo que sea exitoso
+            // Filtro de estado: Súper permisivo para debug
             orders = orders.filter(o => {
                 const s = String(o.status).toUpperCase();
-                return ['4','2','FILLED','PARTIALLY_FILLED','SUCCESS','CANCELED_PARTIALLY_FILLED'].includes(s);
+                return ['4','2','FILLED','PARTIALLY_FILLED','SUCCESS','CANCELED_PARTIALLY_FILLED','NEW','PENDING'].includes(s);
             });
 
-            // Filtro de periodo inteligente (24h para 'today')
-            const now = new Date();
-            const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-            if (period === 'today') {
-                orders = orders.filter(o => new Date(o.time) >= last24h);
-                // Si hoy no hay nada, mostramos las ultimas 10 por si hay dudas de zona horaria
-                if (orders.length === 0) orders = (Array.isArray(bingxSpot) ? bingxSpot : []).slice(0, 10);
-            } else if (period === '7days') {
-                orders = orders.filter(o => new Date(o.time) >= last7Days);
-            }
-
-            sTradesRaw = orders.map(o => {
+            // En lugar de filtrar por 'hoy' o '7 dias' estrictamente para la lista,
+            // vamos a mostrar las últimas órdenes para asegurar que veas ALGO.
+            sTradesRaw = orders.slice(0, 20).map(o => {
                 const qQty = parseFloat(o.cummulativeQuoteQty || 0);
                 const eQty = parseFloat(o.executedQty || 0);
                 const price = parseFloat(o.price || 0);
