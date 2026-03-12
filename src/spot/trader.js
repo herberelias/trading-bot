@@ -118,24 +118,29 @@ async function executeBuy(user, decision, precioActual) {
         logger.info(`[SPOT] Preparando orden de ${montoCompra.toFixed(2)} USDT para ${user.nombre} (${(pct*100).toFixed(0)}% del balance)`);
 
         if (isReal) {
-            await placeSpotOrder(user, {
+            const orderRes = await placeSpotOrder(user, {
                 symbol,
                 side: 'BUY',
                 type: 'MARKET',
                 quoteOrderQty: montoCompra.toFixed(2)
             });
+            
+            if (!orderRes || orderRes.code !== 0) {
+                logger.error(`[SPOT] No se pudo ejecutar orden en BingX para ${user.nombre}: ${orderRes?.msg || 'Error desconocido'}`);
+                return;
+            }
         }
 
-        // Registrar trade
+        // Registrar en DB SOLO SI fUE EXITOSO o es simulado
         await db.execute(`
             INSERT INTO spot_trades (user_id, accion, precio_entrada, capital_usdt, cantidad_eth, cargo_ia, timestamp_apertura)
             VALUES (?, 'BUY', ?, ?, ?, ?, NOW())
         `, [user.id, precioActual, montoCompra, montoCompra / precioActual, decision.confianza]);
 
-        logger.info(`[SPOT] Compra ejecutada para ${user.nombre}: ${montoCompra} USDT en ${precioActual}`);
+        logger.info(`[SPOT] Compra exitosa para ${user.nombre}: ${montoCompra.toFixed(2)} USDT`);
 
     } catch (e) {
-        logger.error(`[SPOT] Error en executeBuy para ${user.nombre}:`, e.message);
+        logger.error(`[SPOT] Error crítico en executeBuy para ${user.nombre}:`, e.message);
     }
 }
 
