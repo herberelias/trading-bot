@@ -583,7 +583,7 @@ async function getDashboardData(period, userId) {
         spot: {
             balanceUsdt: parseFloat(balSpot.usdt).toFixed(2),
             balanceEth:  parseFloat(balSpot.eth).toFixed(6),
-            totalTrades: executedSpot
+            totalTrades: user.modo_real ? sTradesRaw.length : executedSpot
         },
         spotPnl,
         trades: allTrades,
