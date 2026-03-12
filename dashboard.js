@@ -431,19 +431,21 @@ async function getDashboardData(period, userId) {
             const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 50);
             let orders = Array.isArray(bingxSpot) ? bingxSpot : [];
             
-            // Filtro de estado robusto
+            // Filtro de estado: Aceptamos casi todo lo que sea exitoso
             orders = orders.filter(o => {
                 const s = String(o.status).toUpperCase();
-                return s === '4' || s === '2' || s === 'FILLED' || s === 'PARTIALLY_FILLED' || s === 'SUCCESS';
+                return ['4','2','FILLED','PARTIALLY_FILLED','SUCCESS','CANCELED_PARTIALLY_FILLED'].includes(s);
             });
 
-            // Filtro de periodo
+            // Filtro de periodo inteligente (24h para 'today')
             const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
+            const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
             const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
             if (period === 'today') {
-                orders = orders.filter(o => new Date(o.time).toISOString().split('T')[0] === todayStr);
+                orders = orders.filter(o => new Date(o.time) >= last24h);
+                // Si hoy no hay nada, mostramos las ultimas 10 por si hay dudas de zona horaria
+                if (orders.length === 0) orders = (Array.isArray(bingxSpot) ? bingxSpot : []).slice(0, 10);
             } else if (period === '7days') {
                 orders = orders.filter(o => new Date(o.time) >= last7Days);
             }
@@ -452,10 +454,10 @@ async function getDashboardData(period, userId) {
                 const qQty = parseFloat(o.cummulativeQuoteQty || 0);
                 const eQty = parseFloat(o.executedQty || 0);
                 const price = parseFloat(o.price || 0);
-                const side = String(o.side).toUpperCase(); // Asegurar BUY/SELL
+                const side = String(o.side || '').toUpperCase();
                 
                 return {
-                    accion: (side === 'BUY' || side === '1') ? 'BUY' : 'SELL',
+                    accion: (side.includes('BUY') || side === '1') ? 'BUY' : 'SELL',
                     precio: price > 0 ? price : (eQty > 0 ? qQty / eQty : 0),
                     monto_usdt: qQty,
                     hora: o.time,
