@@ -480,31 +480,55 @@ async function getDashboardData(period, userId) {
     const executedSpot   = sStats[0].total || 0;
 
     // Spot PnL: algoritmo compra-venta
-    const [spotPnlRows] = await db.execute(`
-        SELECT 
-            SUM(CASE WHEN accion = 'BUY'  THEN capital_usdt ELSE 0 END) as total_comprado,
-            SUM(CASE WHEN accion = 'SELL' THEN capital_usdt ELSE 0 END) as total_vendido,
-            COUNT(CASE WHEN accion = 'BUY'  THEN 1 END) as num_compras,
-            COUNT(CASE WHEN accion = 'SELL' THEN 1 END) as num_ventas
-        FROM spot_trades WHERE user_id = ?`, [userId]);
-    const spRow = spotPnlRows[0] || {};
-    // ethPrecioEst ya viene del API real (definido arriba)
-    const totalComprado  = parseFloat(spRow.total_comprado  || 0);
-    const totalVendido   = parseFloat(spRow.total_vendido   || 0);
-    const ethActual      = parseFloat(balSpot.eth || 0);
-    const valorEthActual = ethActual * ethPrecioEst;
-    const pnlRealizado   = totalVendido - totalComprado;
-    const pnlTotal       = pnlRealizado + valorEthActual; // incluye ETH sin vender
-    const spotPnl = {
-        totalComprado:  totalComprado.toFixed(2),
-        totalVendido:   totalVendido.toFixed(2),
-        numCompras:     spRow.num_compras || 0,
-        numVentas:      spRow.num_ventas  || 0,
-        pnlRealizado:   pnlRealizado.toFixed(2),
-        valorEthActual: valorEthActual.toFixed(2),
-        pnlTotal:       pnlTotal.toFixed(2),
-        ethActual:      ethActual.toFixed(6)
-    };
+    let spotPnl = {};
+    if (user.modo_real) {
+        // En modo real calculamos desde lo que nos devolvió BingX (sTradesRaw)
+        const tBought = sTradesRaw.filter(t => t.accion === 'BUY').reduce((sum, t) => sum + parseFloat(t.monto_usdt || 0), 0);
+        const tSold   = sTradesRaw.filter(t => t.accion === 'SELL').reduce((sum, t) => sum + parseFloat(t.monto_usdt || 0), 0);
+        const nBuy    = sTradesRaw.filter(t => t.accion === 'BUY').length;
+        const nSell   = sTradesRaw.filter(t => t.accion === 'SELL').length;
+        
+        const ethActual      = parseFloat(balSpot.eth || 0);
+        const valorEthActual = ethActual * ethPrecioEst;
+        const pnlTotal       = (tSold - tBought) + valorEthActual;
+
+        spotPnl = {
+            totalComprado:  tBought.toFixed(2),
+            totalVendido:   tSold.toFixed(2),
+            numCompras:     nBuy,
+            numVentas:      nSell,
+            pnlRealizado:   (tSold - tBought).toFixed(2),
+            valorEthActual: valorEthActual.toFixed(2),
+            pnlTotal:       pnlTotal.toFixed(2),
+            ethActual:      ethActual.toFixed(6)
+        };
+    } else {
+        const [spotPnlRows] = await db.execute(`
+            SELECT 
+                SUM(CASE WHEN accion = 'BUY'  THEN capital_usdt ELSE 0 END) as total_comprado,
+                SUM(CASE WHEN accion = 'SELL' THEN capital_usdt ELSE 0 END) as total_vendido,
+                COUNT(CASE WHEN accion = 'BUY'  THEN 1 END) as num_compras,
+                COUNT(CASE WHEN accion = 'SELL' THEN 1 END) as num_ventas
+            FROM spot_trades WHERE user_id = ?`, [userId]);
+        const spRow = spotPnlRows[0] || {};
+        const totalComprado  = parseFloat(spRow.total_comprado  || 0);
+        const totalVendido   = parseFloat(spRow.total_vendido   || 0);
+        const ethActual      = parseFloat(balSpot.eth || 0);
+        const valorEthActual = ethActual * ethPrecioEst;
+        const pnlRealizado   = totalVendido - totalComprado;
+        const pnlTotal       = pnlRealizado + valorEthActual;
+
+        spotPnl = {
+            totalComprado:  totalComprado.toFixed(2),
+            totalVendido:   totalVendido.toFixed(2),
+            numCompras:     spRow.num_compras || 0,
+            numVentas:      spRow.num_ventas  || 0,
+            pnlRealizado:   pnlRealizado.toFixed(2),
+            valorEthActual: valorEthActual.toFixed(2),
+            pnlTotal:       pnlTotal.toFixed(2),
+            ethActual:      ethActual.toFixed(6)
+        };
+    }
 
     // AI Futuros: ultima decision de ESTE usuario
     const [aiRowsFut] = await db.execute(
