@@ -313,51 +313,32 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                         </div>
                     </div>
 
-                    <!-- PNL RESUMEN SPOT -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.25rem;">
-                        <div style="background:rgba(0,0,0,0.25); border-radius:14px; padding:12px; border:1px solid var(--border);">
-                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; margin-bottom:4px;">TOTAL COMPRADO</div>
-                            <div style="font-weight:800; color:var(--danger);">-$${data.spotPnl.totalComprado}</div>
-                            <div style="font-size:0.65rem; color:var(--text-dim);">${data.spotPnl.numCompras} BUYs</div>
-                        </div>
-                        <div style="background:rgba(0,0,0,0.25); border-radius:14px; padding:12px; border:1px solid var(--border);">
-                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; margin-bottom:4px;">TOTAL VENDIDO</div>
-                            <div style="font-weight:800; color:var(--success);">+$${data.spotPnl.totalVendido}</div>
-                            <div style="font-size:0.65rem; color:var(--text-dim);">${data.spotPnl.numVentas} SELLs</div>
-                        </div>
-                        <div style="background:rgba(0,0,0,0.25); border-radius:14px; padding:12px; border:1px solid var(--border);">
-                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; margin-bottom:4px;">PNL REALIZADO</div>
-                            <div style="font-weight:800; color:${parseFloat(data.spotPnl.pnlRealizado) >= 0 ? 'var(--success)' : 'var(--danger)'};">
-                                ${parseFloat(data.spotPnl.pnlRealizado) >= 0 ? '+' : ''}$${data.spotPnl.pnlRealizado}
-                            </div>
-                            <div style="font-size:0.65rem; color:var(--text-dim);">SELL − BUY</div>
-                        </div>
-                        <div style="background:rgba(0,0,0,0.25); border-radius:14px; padding:12px; border:1px solid var(--border);">
-                            <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; margin-bottom:4px;">ETH EN CARTERA</div>
-                            <div style="font-weight:800; color:#a78bfa;">${data.spotPnl.ethActual} ETH</div>
-                            <div style="font-size:0.65rem; color:var(--text-dim);">≈ $${data.spotPnl.valorEthActual}</div>
-                        </div>
-                    </div>
-                    <!-- TOTAL NETO -->
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.25rem;">
-                        <div style="background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.08)); border:1px solid rgba(16,185,129,0.25); border-radius:14px; padding:14px; display:flex; justify-content:space-between; align-items:center;">
+                    <!-- RESUMEN COMPACTO SPOT -->
+                    <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap: 10px; margin-bottom: 1.25rem;">
+                        <div style="background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(59,130,246,0.08)); border:1px solid rgba(16,185,129,0.25); border-radius:14px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
                             <div>
-                                <div style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">PNL TOTAL</div>
-                                <div style="font-size:0.6rem; color:var(--text-dim);">Realizado + Cartera</div>
+                                <div style="font-size:0.65rem; color:var(--text-dim); font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">PnL Realizado</div>
+                                <div style="font-size:0.6rem; color:var(--text-dim);">Ventas − Compras</div>
                             </div>
-                            <div style="font-size:1.2rem; font-weight:900; color:${parseFloat(data.spotPnl.pnlTotal) >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                            <div style="font-size:1.3rem; font-weight:900; color:${parseFloat(data.spotPnl.pnlTotal) >= 0 ? 'var(--success)' : 'var(--danger)'};">
                                 ${parseFloat(data.spotPnl.pnlTotal) >= 0 ? '+' : ''}$${data.spotPnl.pnlTotal}
                             </div>
                         </div>
-                        <div style="background:rgba(0,0,0,0.25); border:1px solid var(--warning); border-radius:14px; padding:14px; display:flex; justify-content:space-between; align-items:center;">
+
+                        <div style="background:rgba(0,0,0,0.25); border:1px solid var(--warning); border-radius:14px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
                             <div>
-                                <div style="font-size:0.65rem; color:var(--warning); font-weight:800;">ÚLTIMA COMPRA</div>
-                                <div style="font-size:0.6rem; color:var(--text-dim);">Precio Ref. IA</div>
+                                <div style="font-size:0.65rem; color:var(--warning); font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Referencia IA</div>
+                                <div style="font-size:0.6rem; color:var(--text-dim);">Último precio compra</div>
                             </div>
-                            <div style="font-size:1.2rem; font-weight:900; color:var(--text);">
+                            <div style="font-size:1.3rem; font-weight:900; color:white;">
                                 $${data.spotPnl.ultimaCompra}
                             </div>
                         </div>
+                    </div>
+
+                    <div style="background:rgba(15,23,42,0.5); border-radius:14px; padding:10px 15px; margin-bottom:1.25rem; display:flex; justify-content:space-between; border: 1px solid var(--border);">
+                        <div style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">Balance: <span style="color:#a78bfa">${data.spotPnl.ethActual} ETH</span></div>
+                        <div style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">Valor: <span style="color:var(--success)">$${data.spotPnl.valorEthActual}</span></div>
                     </div>
 
                     <div class="table-wrap">
