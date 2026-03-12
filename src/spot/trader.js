@@ -112,12 +112,10 @@ async function executeBuy(user, decision, precioActual) {
             usdtBalance = 1000; // Simulado
         }
 
-        const montoCompra = usdtBalance * 0.1; // Ejemplo: 10% del balance
-        
-        if (montoCompra < 6) {
-            logger.info(`[SPOT] Saldo insuficiente para ${user.nombre}: ${usdtBalance} USDT`);
-            return;
-        }
+        const pct = (decision.capital_pct || 25) / 100;
+        const montoCompra = usdtBalance * pct;
+
+        logger.info(`[SPOT] Preparando orden de ${montoCompra.toFixed(2)} USDT para ${user.nombre} (${(pct*100).toFixed(0)}% del balance)`);
 
         if (isReal) {
             await placeSpotOrder(user, {
