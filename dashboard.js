@@ -124,6 +124,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         .b-long { background: rgba(16, 185, 129, 0.15); color: var(--success); }
         .b-short { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
         .b-spot { background: rgba(59, 130, 246, 0.15); color: var(--primary); }
+        .b-hold { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
 
         /* AI Section Custom Styles */
         .ai-box { background: rgba(0,0,0,0.3); border-radius: 20px; padding: 1.5rem; border: 1px solid var(--border); line-height: 1.6; }
@@ -201,7 +202,12 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:10px;">
                 <div>
                     <div style="font-size:0.65rem; font-weight:900; text-transform:uppercase; letter-spacing:1.5px; color:var(--secondary); margin-bottom:6px;">IA FUTUROS (BTC)</div>
-                    ${data.aiFuturos ? `<span class="badge ${data.aiFuturos.accion === 'LONG' ? 'b-long' : data.aiFuturos.accion === 'SHORT' ? 'b-short' : 'b-spot'}" style="font-size:1rem; padding:10px 22px;">${data.aiFuturos.accion}</span>` : ''}
+                    ${data.aiFuturos ? (() => {
+                        let cls = 'b-hold';
+                        if (data.aiFuturos.accion === 'LONG') cls = 'b-long';
+                        if (data.aiFuturos.accion === 'SHORT') cls = 'b-short';
+                        return `<span class="badge ${cls}" style="font-size:1rem; padding:10px 22px;">${data.aiFuturos.accion}</span>`;
+                    })() : ''}
                 </div>
                 ${data.aiFuturos ? `
                 <div style="text-align:right;">
@@ -221,7 +227,12 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:10px;">
                 <div>
                     <div style="font-size:0.65rem; font-weight:900; text-transform:uppercase; letter-spacing:1.5px; color:var(--success); margin-bottom:6px;">IA SPOT (ETH)</div>
-                    ${data.aiSpot ? `<span class="badge ${data.aiSpot.accion === 'BUY' ? 'b-long' : data.aiSpot.accion === 'SELL' ? 'b-short' : 'b-spot'}" style="font-size:1rem; padding:10px 22px;">${data.aiSpot.accion}</span>` : ''}
+                    ${data.aiSpot ? (() => {
+                        let cls = 'b-hold';
+                        if (data.aiSpot.accion === 'BUY') cls = 'b-long';
+                        if (data.aiSpot.accion === 'SELL') cls = 'b-short';
+                        return `<span class="badge ${cls}" style="font-size:1rem; padding:10px 22px;">${data.aiSpot.accion}</span>`;
+                    })() : ''}
                 </div>
                 ${data.aiSpot ? `
                 <div style="text-align:right;">
@@ -512,14 +523,14 @@ async function getDashboardData(period, userId) {
         tradesFuturos,
         tradesSpot,
         aiFuturos: lastAIFut ? {
-            accion:    lastAIFut.accion,
+            accion:    (lastAIFut.confianza >= user.confianza_minima) ? lastAIFut.accion : 'HOLD / BLOQUEADO',
             razon:     lastAIFut.razon,
             confianza: lastAIFut.confianza,
             rsi:       lastAIFut.rsi || '--',
             hace:      Math.round((Date.now() - new Date(lastAIFut.fecha)) / 60000) + ' min'
         } : null,
         aiSpot: lastAISpot ? {
-            accion:    lastAISpot.accion,
+            accion:    (lastAISpot.confianza >= user.confianza_minima) ? lastAISpot.accion : 'HOLD / BLOQUEADO',
             razon:     lastAISpot.razon,
             confianza: lastAISpot.confianza,
             rsi:       lastAISpot.rsi || '--',
