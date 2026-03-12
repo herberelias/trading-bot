@@ -136,11 +136,6 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         }
         select:hover { border-color: var(--primary); }
 
-        /* Manual Buttons */
-        .btn-buy-manual { background: var(--success); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.65rem; cursor: pointer; transition: 0.2s; }
-        .btn-sell-manual { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.65rem; cursor: pointer; transition: 0.2s; }
-        .btn-buy-manual:hover, .btn-sell-manual:hover { opacity: 0.8; transform: translateY(-1px); }
-
         /* Mobile Adjustments */
         @media (max-width: 600px) {
             header { padding: 1rem; justify-content: center; }
@@ -306,11 +301,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title" style="color:var(--success);">ETH Spot</div>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <button onclick="manualTrade('BUY')" class="btn-buy-manual">COMPRAR</button>
-                            <button onclick="manualTrade('SELL')" class="btn-sell-manual">VENDER</button>
-                            <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700; margin-left:8px;">${data.spot.totalTrades} ops</span>
-                        </div>
+                        <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">${data.spot.totalTrades} ops</span>
                     </div>
 
                     <!-- RESUMEN COMPACTO SPOT -->
@@ -426,53 +417,10 @@ async function getDashboardData(period, userId) {
         fTradesRaw = rows;
     }
 
-    let sTradesRaw = [];
-    if (user.modo_real) {
-        try {
-            // Aumentamos el límite y usamos el symbol correcto
-            const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 100);
-            let orders = Array.isArray(bingxSpot) ? bingxSpot : [];
-            
-            // Filtro de estado: Súper permisivo para capturar todo lo real
-            orders = orders.filter(o => {
-                const s = String(o.status).toUpperCase();
-                // 2=FILLED en Spot V1, también capturamos estados de texto
-                return ['2', '4', 'FILLED', 'SUCCESS', 'SUCCESS_FILLED'].includes(s);
-            });
-
-            // Mapear órdenes a formato interno
-            sTradesRaw = orders.map(o => {
-                const price = parseFloat(o.price || o.avgPrice || 0);
-                const qty = parseFloat(o.executedQty || o.amount || 0);
-                const quoteQty = parseFloat(o.cummulativeQuoteQty || 0);
-                const side = String(o.side || '').toUpperCase();
-                
-                return {
-                    accion: (side.includes('BUY') || side === '1' || side === 'BUY') ? 'BUY' : 'SELL',
-                    precio: price > 0 ? price : (qty > 0 ? quoteQty / qty : 0),
-                    monto_usdt: quoteQty > 0 ? quoteQty : (price * qty),
-                    hora: o.time || o.updateTime,
-                    isReal: true
-                };
-            });
-
-            // Ordenar por fecha descendente
-            sTradesRaw.sort((a, b) => b.hora - a.hora);
-
-            // IMPORTANTE: Para las estadísticas del día aplicamos el filtro, 
-            // pero para la tabla NO, para que siempre se vea el historial.
-            if (period === 'today') {
-                const startOfDay = new Date().setHours(0,0,0,0);
-                // Aquí podrías filtrar sStats si fuera necesario, pero el dashboard
-                // usa sTradesRaw para el cálculo de tBought/tSold en modo_real
-            }
-        } catch (e) {
-            console.error('[DASHBOARD] Error procesando Spot Real:', e.message);
-        }
-    } else {
-        const [rows] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
-        sTradesRaw = rows;
-    }
+    // Siempre traemos los trades de la DB para Spot, ya que es el registro fiel de la IA.
+    // Para la tabla de spot, mostramos el historial completo (o últimos 50) como pidió el usuario.
+    const [sTradesRows] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE user_id = ? ORDER BY hora DESC LIMIT 50`, [userId]);
+    let sTradesRaw = sTradesRows;
 
     const fmt = (d) => new Date(d).toLocaleString('es-SV', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
     const fmtUSDT = (v) => parseFloat(v || 0) > 0 ? `$${parseFloat(v).toFixed(2)} USDT` : '--';
@@ -511,56 +459,32 @@ async function getDashboardData(period, userId) {
     const executedFuturos = fExecuted[0].executed || 0;
     const executedSpot   = sStats[0].total || 0;
 
-    // Spot PnL: algoritmo compra-venta
-    let spotPnl = {};
-    if (user.modo_real) {
-        // En modo real calculamos desde lo que nos devolvió BingX (sTradesRaw)
-        const tBought = sTradesRaw.filter(t => t.accion === 'BUY').reduce((sum, t) => sum + parseFloat(t.monto_usdt || 0), 0);
-        const tSold   = sTradesRaw.filter(t => t.accion === 'SELL').reduce((sum, t) => sum + parseFloat(t.monto_usdt || 0), 0);
-        const nBuy    = sTradesRaw.filter(t => t.accion === 'BUY').length;
-        const nSell   = sTradesRaw.filter(t => t.accion === 'SELL').length;
-        
-        const ethActual      = parseFloat(balSpot.eth || 0);
-        const valorEthActual = ethActual * ethPrecioEst;
-        const pnlTotal       = (tSold - tBought) + valorEthActual;
+    // Spot PnL: algoritmo compra-venta siempre desde la DB
+    const [spotPnlRows] = await db.execute(`
+        SELECT 
+            SUM(CASE WHEN accion = 'BUY'  THEN capital_usdt ELSE 0 END) as total_comprado,
+            SUM(CASE WHEN accion = 'SELL' THEN capital_usdt ELSE 0 END) as total_vendido,
+            COUNT(CASE WHEN accion = 'BUY'  THEN 1 END) as num_compras,
+            COUNT(CASE WHEN accion = 'SELL' THEN 1 END) as num_ventas
+        FROM spot_trades WHERE user_id = ?`, [userId]);
+    const spRow = spotPnlRows[0] || {};
+    const totalComprado  = parseFloat(spRow.total_comprado  || 0);
+    const totalVendido   = parseFloat(spRow.total_vendido   || 0);
+    const ethActual      = parseFloat(balSpot.eth || 0);
+    const valorEthActual = ethActual * ethPrecioEst;
+    const pnlRealizado   = totalVendido - totalComprado;
+    const pnlTotal       = pnlRealizado + valorEthActual;
 
-        spotPnl = {
-            totalComprado:  tBought.toFixed(2),
-            totalVendido:   tSold.toFixed(2),
-            numCompras:     nBuy,
-            numVentas:      nSell,
-            pnlRealizado:   (tSold - tBought).toFixed(2),
-            valorEthActual: valorEthActual.toFixed(2),
-            pnlTotal:       pnlTotal.toFixed(2),
-            ethActual:      ethActual.toFixed(6)
-        };
-    } else {
-        const [spotPnlRows] = await db.execute(`
-            SELECT 
-                SUM(CASE WHEN accion = 'BUY'  THEN capital_usdt ELSE 0 END) as total_comprado,
-                SUM(CASE WHEN accion = 'SELL' THEN capital_usdt ELSE 0 END) as total_vendido,
-                COUNT(CASE WHEN accion = 'BUY'  THEN 1 END) as num_compras,
-                COUNT(CASE WHEN accion = 'SELL' THEN 1 END) as num_ventas
-            FROM spot_trades WHERE user_id = ?`, [userId]);
-        const spRow = spotPnlRows[0] || {};
-        const totalComprado  = parseFloat(spRow.total_comprado  || 0);
-        const totalVendido   = parseFloat(spRow.total_vendido   || 0);
-        const ethActual      = parseFloat(balSpot.eth || 0);
-        const valorEthActual = ethActual * ethPrecioEst;
-        const pnlRealizado   = totalVendido - totalComprado;
-        const pnlTotal       = pnlRealizado + valorEthActual;
-
-        spotPnl = {
-            totalComprado:  totalComprado.toFixed(2),
-            totalVendido:   totalVendido.toFixed(2),
-            numCompras:     spRow.num_compras || 0,
-            numVentas:      spRow.num_ventas  || 0,
-            pnlRealizado:   pnlRealizado.toFixed(2),
-            valorEthActual: valorEthActual.toFixed(2),
-            pnlTotal:       pnlTotal.toFixed(2),
-            ethActual:      ethActual.toFixed(6)
-        };
-    }
+    let spotPnl = {
+        totalComprado:  totalComprado.toFixed(2),
+        totalVendido:   totalVendido.toFixed(2),
+        numCompras:     spRow.num_compras || 0,
+        numVentas:      spRow.num_ventas  || 0,
+        pnlRealizado:   pnlRealizado.toFixed(2),
+        valorEthActual: valorEthActual.toFixed(2),
+        pnlTotal:       pnlTotal.toFixed(2),
+        ethActual:      ethActual.toFixed(6)
+    };
 
     const lastPurchasePrice = await traderSpot.getUltimaCompra(user.id);
     spotPnl.ultimaCompra = lastPurchasePrice ? lastPurchasePrice.toFixed(2) : '--';
@@ -630,34 +554,6 @@ app.post('/login', async (req, res) => {
     } catch (e) { res.send(loginHTML('Error de sistema')); }
 });
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
-
-// API para trading manual desde dashboard
-app.post('/api/spot/manual', requireAuth, async (req, res) => {
-    const { accion } = req.body;
-    const userId = req.session.userId;
-    
-    try {
-        const [userRow] = await db.execute('SELECT * FROM users WHERE id = ?', [userId]);
-        const user = userRow[0];
-        if (!user) return res.status(404).json({ success: false, msg: 'Usuario no encontrado' });
-
-        const traderSpot = require('./src/spot/trader');
-        const precioActual = await traderSpot.getSpotPrice('ETH-USDT');
-
-        if (accion === 'BUY') {
-            await traderSpot.executeBuy(user, { capital_pct: 50, confianza: 1 }, precioActual);
-            res.json({ success: true, msg: 'Compra ejecutada correctamente' });
-        } else if (accion === 'SELL') {
-            await traderSpot.executeSell(user, { sell_pct: 100, confianza: 1 }, precioActual);
-            res.json({ success: true, msg: 'Venta ejecutada correctamente' });
-        } else {
-            res.status(400).json({ success: false, msg: 'Accion no valida' });
-        }
-    } catch (e) {
-        console.error('[MANUAL SPOT] Error:', e.message);
-        res.status(500).json({ success: false, msg: 'Error en el servidor: ' + e.message });
-    }
-});
 
 // ═══════════════════════════════════════════
 // ADMIN PANEL
