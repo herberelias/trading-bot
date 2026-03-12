@@ -427,16 +427,27 @@ async function getDashboardData(period, userId) {
 
     let sTradesRaw = [];
     if (user.modo_real) {
-        const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 20);
-        sTradesRaw = bingxSpot
-            .filter(o => o.status === 4 || o.status === 2 || o.status === 'FILLED' || o.status === 'PARTIALLY_FILLED')
-            .map(o => ({
-                accion: o.side,
-                precio: o.price || o.cummulativeQuoteQty / o.executedQty,
-                monto_usdt: o.cummulativeQuoteQty,
-                hora: o.time,
-                isReal: true
-            }));
+        const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 50);
+        let orders = bingxSpot.filter(o => o.status === 4 || o.status === 2 || o.status === 'FILLED' || o.status === 'PARTIALLY_FILLED');
+        
+        // Aplicar filtro de fecha (period)
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        if (period === 'today') {
+            orders = orders.filter(o => new Date(o.time).toISOString().split('T')[0] === todayStr);
+        } else if (period === '7days') {
+            orders = orders.filter(o => new Date(o.time) >= last7Days);
+        }
+
+        sTradesRaw = orders.map(o => ({
+            accion: o.side,
+            precio: parseFloat(o.price || 0) > 0 ? o.price : (o.cummulativeQuoteQty / o.executedQty),
+            monto_usdt: o.cummulativeQuoteQty,
+            hora: o.time,
+            isReal: true
+        }));
     } else {
         const [rows] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
         sTradesRaw = rows;
