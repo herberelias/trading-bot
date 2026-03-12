@@ -428,31 +428,42 @@ async function getDashboardData(period, userId) {
     let sTradesRaw = [];
     if (user.modo_real) {
         try {
-            const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 50);
+            // Aumentamos el límite y usamos el symbol correcto
+            const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 100);
             let orders = Array.isArray(bingxSpot) ? bingxSpot : [];
             
-            // Filtro de estado: Súper permisivo para debug
+            // Filtro de estado: Súper permisivo para capturar todo lo real
             orders = orders.filter(o => {
                 const s = String(o.status).toUpperCase();
-                return ['4','2','FILLED','PARTIALLY_FILLED','SUCCESS','CANCELED_PARTIALLY_FILLED','NEW','PENDING'].includes(s);
+                // 2=FILLED en Spot V1, también capturamos estados de texto
+                return ['2', '4', 'FILLED', 'SUCCESS', 'SUCCESS_FILLED'].includes(s);
             });
 
-            // En lugar de filtrar por 'hoy' o '7 dias' estrictamente para la lista,
-            // vamos a mostrar las últimas órdenes para asegurar que veas ALGO.
-            sTradesRaw = orders.slice(0, 20).map(o => {
-                const qQty = parseFloat(o.cummulativeQuoteQty || 0);
-                const eQty = parseFloat(o.executedQty || 0);
-                const price = parseFloat(o.price || 0);
+            // Mapear órdenes a formato interno
+            sTradesRaw = orders.map(o => {
+                const price = parseFloat(o.price || o.avgPrice || 0);
+                const qty = parseFloat(o.executedQty || o.amount || 0);
+                const quoteQty = parseFloat(o.cummulativeQuoteQty || 0);
                 const side = String(o.side || '').toUpperCase();
                 
                 return {
-                    accion: (side.includes('BUY') || side === '1') ? 'BUY' : 'SELL',
-                    precio: price > 0 ? price : (eQty > 0 ? qQty / eQty : 0),
-                    monto_usdt: qQty,
-                    hora: o.time,
+                    accion: (side.includes('BUY') || side === '1' || side === 'BUY') ? 'BUY' : 'SELL',
+                    precio: price > 0 ? price : (qty > 0 ? quoteQty / qty : 0),
+                    monto_usdt: quoteQty > 0 ? quoteQty : (price * qty),
+                    hora: o.time || o.updateTime,
                     isReal: true
                 };
             });
+
+            // Ordenar por fecha descendente
+            sTradesRaw.sort((a, b) => b.hora - a.hora);
+
+            // Filtrado opcional por periodo para las estadísticas, pero no para la visibilidad si el portfolio tiene algo
+            if (period === 'today') {
+                const startOfDay = new Date().setHours(0,0,0,0);
+                // Si queremos ser estrictos para las estadísticas del cuadro superior:
+                // Pero para la tabla inferior mostraremos los últimos 20 siempre
+            }
         } catch (e) {
             console.error('[DASHBOARD] Error procesando Spot Real:', e.message);
         }
@@ -579,7 +590,7 @@ async function getDashboardData(period, userId) {
         spotPnl,
         trades: allTrades,
         tradesFuturos,
-        tradesSpot,
+        tradesSpot: tradesSpot.slice(0, 20), // Mostrar solo los 20 más recientes en la tabla
         aiFuturos: lastAIFut ? {
             accion:    (lastAIFut.confianza >= user.confianza_minima) ? lastAIFut.accion : 'HOLD / BLOQUEADO',
             razon:     lastAIFut.razon,
