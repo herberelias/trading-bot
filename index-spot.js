@@ -23,10 +23,11 @@ async function runSpotBot() {
         }
 
         // 1. Velas en paralelo (una vez para todos — el mercado es igual para todos)
-        const [candles15m, candles1h, candles4h] = await Promise.all([
+        const [candles15m, candles1h, candles4h, candles1d] = await Promise.all([
             marketSpot.getCandles15mSpot(par),
             marketSpot.getCandles1hSpot(par),
-            marketSpot.getCandles4hSpot(par)
+            marketSpot.getCandles4hSpot(par),
+            marketSpot.getCandles1dSpot(par)
         ]);
 
         if (!candles15m || candles15m.length < 50) {
@@ -40,10 +41,14 @@ async function runSpotBot() {
             ? indicators.calcularIndicadores(candles1h) : indicators15m;
         const indicators4h = (candles4h && candles4h.length >= 50)
             ? indicators.calcularIndicadores(candles4h) : null;
+        const indicators1d = (candles1d && candles1d.length >= 50)
+            ? indicators.calcularIndicadores(candles1d) : null;
 
         const precioActual = indicators15m.currentPrice;
 
         // 3. Contexto global (solo una vez)
+        const TrumpNews = "Donald Trump maintains a strongly pro-crypto stance, establishing a Bitcoin reserve, signing the GENIUS Act for stablecoins, and opposing CBDCs. His administration promotes clear regulatory frameworks (Crypto Clarity Act) and a friendly environment for digital assets.";
+        
         const [fearGreed, soportesResistencias, sesionMercado] = await Promise.all([
             context.getFearAndGreed(),
             candles1h && candles1h.length > 0 
@@ -73,9 +78,10 @@ async function runSpotBot() {
 
                 // 4. IA independiente para este usuario (con su capital real)
                 const decision = await aiSpot.consultarGeminiSpot(
-                    indicators15m, indicators1h, indicators4h,
+                    indicators15m, indicators1h, indicators4h, indicators1d,
                     precioActual, balanceSpot, historialHoy,
-                    fearGreed, soportesResistencias, sesionMercado, racha, ultimaCompraPrecio
+                    fearGreed, soportesResistencias, sesionMercado, racha, ultimaCompraPrecio,
+                    TrumpNews
                 );
 
                 if (!decision) {

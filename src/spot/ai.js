@@ -7,9 +7,10 @@ const MODEL = process.env.GEMINI_MODEL;
 const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
 
 async function consultarGeminiSpot(
-    indicators15m, indicators1h, indicators4h,
+    indicators15m, indicators1h, indicators4h, indicators1d,
     precioActual, balanceSpot, historialHoy,
-    fearGreed, soportesResistencias, sesionMercado, racha, ultimaCompraPrecio
+    fearGreed, soportesResistencias, sesionMercado, racha, ultimaCompraPrecio,
+    noticiasTrump
 ) {
     const tendencia1h = parseFloat(indicators1h.ema20) > parseFloat(indicators1h.ema50)
         ? 'ALCISTA (EMA20 > EMA50)' : 'BAJISTA (EMA20 < EMA50)';
@@ -18,8 +19,13 @@ async function consultarGeminiSpot(
         ? (parseFloat(indicators4h.ema20) > parseFloat(indicators4h.ema50) ? 'ALCISTA' : 'BAJISTA')
         : 'No disponible';
 
+    const tendencia1d = indicators1d
+        ? (parseFloat(indicators1d.ema20) > parseFloat(indicators1d.ema50) ? 'ALCISTA' : 'BAJISTA')
+        : 'No disponible';
+
     const rsi1h = parseFloat(indicators1h.rsi);
     const rsi15m = parseFloat(indicators15m.rsi);
+    const rsi1d = indicators1d ? parseFloat(indicators1d.rsi) : 50;
 
     const balanceStr = `USDT disponible: ${balanceSpot.usdt.toFixed(2)} | ETH disponible: ${balanceSpot.eth.toFixed(6)} (valor: ~${(balanceSpot.eth * precioActual).toFixed(2)} USDT)`;
     const dcaStr = ultimaCompraPrecio
@@ -52,6 +58,7 @@ Tienes LIBERTAD TOTAL para decidir cuando comprar, cuanto, cuando vender y cuant
 REGLAS SPOT (MUY IMPORTANTE):
 - Solo puedes BUY (comprar ETH), SELL (vender ETH) o HOLD
 - NO hay SHORT, NO hay apalancamiento, NO hay liquidacion
+- Prioriza la tendencia y el RSI de 1D (DIARIO) sobre los de menor timeframe.
 - stop_loss_ref es referencial — si el precio baja a ese nivel decides SELL en el siguiente ciclo
 - Puedes tomar ganancias parciales (sell_pct < 100)
 - ESTRATEGIA DCA (Dollar Cost Averaging):
@@ -60,8 +67,18 @@ REGLAS SPOT (MUY IMPORTANTE):
   ¡Divide tus compras! No uses el 100% del capital en una sola entrada si acabas de comprar.
 
 ═══════════════════════════════════════════════════
+NOTICIAS RELEVANTES (Contexto Fundamental)
+═══════════════════════════════════════════════════
+${noticiasTrump || 'No hay noticias recientes.'}
+
+═══════════════════════════════════════════════════
 ANALISIS TECNICO — ETH-USDT
 ═══════════════════════════════════════════════════
+
+TIMEFRAME 1D (DIARIO - CRITICO):
+- Tendencia: ${tendencia1d}
+- RSI: ${indicators1d ? indicators1d.rsi : 'N/A'} ${rsi1d > 70 ? '[SOBRECOMPRADO]' : rsi1d < 30 ? '[SOBREVENDIDO]' : ''}
+- Bollinger: ${indicators1d ? indicators1d.bb_position : 'N/A'}
 
 TIMEFRAME 4H (macro):
 - Tendencia: ${tendencia4h}
@@ -113,15 +130,16 @@ CRITERIOS
 ═══════════════════════════════════════════════════
 
 BUY (comprar ETH o hacer DCA):
-- 4h y 1h alcistas + 15m confirma
+- 1D alcista o rebotando en soporte clave. RSI 1D no sobrecomprado.
+- 1H confirma la fuerza.
 - DCA (Dollar Cost Averaging): Si el precio actual es MENOR a tu ultimo precio de compra, y rebotó en un soporte, realiza compras parciales para bajar el costo promedio.
 - Precio cerca de soporte o banda inferior Bollinger
 - RSI < 65, volumen > 100% promedio
 - Fear & Greed < 85
-- capital_pct: usa 15-30% para primera entrada o pequeños DCA. Usa 40-80% solo si la señal es extremadamente fuerte o el precio colapsó a un soporte de 4h.
+- capital_pct: usa 15-30% para primera entrada o pequeños DCA. Usa 40-80% solo si la señal es extremadamente fuerte o el precio colapsó a un soporte de 4h/1D.
 
 SELL (vender ETH):
-- El precio actual SUPERÓ tu último precio de compra y llegó a una resistencia clave o banda superior Bollinger.
+- El precio actual SUPERÓ tu último precio de compra y llegó a una resistencia clave o banda superior Bollinger de 1D o 4H.
 - Toma de ganancias (Take Profit): Vender parcialmente (sell_pct: 50-70%) si la señal no es fatal.
 - RSI > 70 con señal de debilidad en el MACD.
 - STOP LOSS VIRTUAL: Si el precio cayó DEBAJO de tu stop_loss_ref, y la tendencia (1H y 4H) cambió a bajista, haz SELL (sell_pct 100%) para proteger capital.

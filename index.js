@@ -56,6 +56,7 @@ async function runBot() {
             ? context.calcularSoportesResistencias(candles1h, 50)
             : null;
         const sesionMercado = context.getSesionMercado();
+        const TrumpNews = "Donald Trump maintains a strongly pro-crypto stance, establishing a Bitcoin reserve, signing the GENIUS Act for stablecoins, and opposing CBDCs. His administration promotes clear regulatory frameworks (Crypto Clarity Act) and a friendly environment for digital assets.";
 
         logger.info(`Precio: ${precioActual} | Fear: ${fearGreed?.value} | Funding: ${fundingRate?.fundingRate}%`);
 
@@ -97,7 +98,8 @@ async function runBot() {
                     soportesResistencias,
                     sesionMercado,
                     fundingRate,
-                    racha
+                    racha,
+                    TrumpNews
                 );
 
                 if (!decision) {
@@ -141,18 +143,9 @@ async function runBot() {
                         logger.info(`[${user.nombre}] Ejecutando MOVE_SL a ${decision.nuevo_stop_loss}...`);
                         await trader.cancelOpenOrders(user);
                         await trader.updateStopLoss(decision.nuevo_stop_loss, precioActual, user);
-                        if (decision.trailing_pct) {
-                            await new Promise(r => setTimeout(r, 1500));
-                            const pos = posicionesAbiertas.find(p => p.positionSide === "LONG" || p.positionSide === "SHORT");
-                            if (pos) await trader.placeTrailingStop(pos.positionSide, decision.trailing_pct, user);
-                        }
                     } else if (decision.accion === 'LONG' || decision.accion === 'SHORT') {
                         logger.info(`[${user.nombre}] Ejecutando ${decision.accion}...`);
                         await trader.executeTrade(decision, precioActual, user);
-                        const trailingPct = parseFloat(decision.trailing_pct) || 1.0;
-                        logger.info(`[${user.nombre}] Colocando Trailing Stop: ${trailingPct}%...`);
-                        await new Promise(r => setTimeout(r, 2000));
-                        await trader.placeTrailingStop(decision.accion, trailingPct, user);
                     }
                 }
 

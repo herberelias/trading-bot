@@ -45,4 +45,9 @@ async function getCandles4hSpot(symbol = null) {
     return await getKlinesSpot(par, '4h', 100);
 }
 
-module.exports = { getCandles15mSpot, getCandles1hSpot, getCandles4hSpot };
+async function getCandles1dSpot(symbol = null) {
+    const par = symbol || process.env.PAR_SPOT || 'ETH-USDT';
+    return await getKlinesSpot(par, '1d', 100);
+}
+
+module.exports = { getCandles15mSpot, getCandles1hSpot, getCandles4hSpot, getCandles1dSpot };

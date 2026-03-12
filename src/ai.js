@@ -9,7 +9,8 @@ const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:ge
 async function consultarGemini(
     indicators15m, indicators1h, indicators4h,
     precioActual, posicionesAbiertas, balance, historialHoy,
-    fearGreed, soportesResistencias, sesionMercado, fundingRate, racha
+    fearGreed, soportesResistencias, sesionMercado, fundingRate, racha,
+    noticiasTrump
 ) {
     const tendencia1h = parseFloat(indicators1h.ema20) > parseFloat(indicators1h.ema50)
         ? 'ALCISTA (EMA20 > EMA50)' : 'BAJISTA (EMA20 < EMA50)';
@@ -71,6 +72,11 @@ async function consultarGemini(
     const prompt = `Eres un trader profesional experto en futuros perpetuos de criptomonedas con mas de 10 años de experiencia.
 Operas BTC-USDT en BingX con apalancamiento ${process.env.APALANCAMIENTO}x.
 Tienes LIBERTAD TOTAL: decides que hacer, cuanto arriesgar, cuando entrar, salir y mover el stop loss.
+
+═══════════════════════════════════════════════════
+NOTICIAS RELEVANTES (Contexto Fundamental)
+═══════════════════════════════════════════════════
+${noticiasTrump || 'No hay noticias recientes.'}
 
 ═══════════════════════════════════════════════════
 ANALISIS TECNICO MULTI-TIMEFRAME
@@ -149,61 +155,34 @@ CRITERIOS PROFESIONALES
 ═══════════════════════════════════════════════════
 
 ENTRADAS (LONG/SHORT):
-- Los 3 timeframes (4h, 1h, 15m) alineados en la misma direccion
-- Volumen > 110% del promedio
-- RSI no en zona extrema contraria
-- Precio NO tocando banda de Bollinger opuesta
-- Entrada LONG cerca de soporte, SHORT cerca de resistencia
-- Evitar entrar si Fear & Greed > 85 (euforia extrema) para LONG
-- Evitar entrar si Fear & Greed < 15 (panico extremo) para SHORT
-- Sesion de baja actividad (ASIA o CIERRE_NY) → ser mas conservador o HOLD
-- Funding rate > 0.1% positivo → cuidado con LONG (mercado saturado de longs)
+- LONG: Los 3 timeframes (4h, 1h, 15m) alineados al alza. O rebote fuerte en soporte 1h/4h.
+- SHORT: No necesitas que 4h sea bajista si el precio esta en resistencia EXTREMA de 4h o 1h y el 15m+1h ya muestran debilidad (EMA20 < EMA50 en 15m). No operes SHORT si el RSI 4h esta subiendo con mucha fuerza.
+- Volumen > 110% del promedio al entrar.
+- RSI no en zona extrema contraria.
+- Entrada LONG cerca de soporte, SHORT cerca de resistencia.
+- Evitar entrar si Fear & Greed > 85 (euforia extrema) para LONG.
+- Evitar entrar si Fear & Greed < 15 (panico extremo) para SHORT.
 
 STOP LOSS:
-- Siempre en nivel tecnico (soporte para LONG, resistencia para SHORT)
-- Minimo 0.3% de distancia, maximo 2.5%
-- Para LONG: justo debajo del soporte mas cercano
-- Para SHORT: justo encima de la resistencia mas cercana
-- NUNCA mas alla del 80% de distancia al precio de liquidacion
+- Siempre en nivel tecnico (soporte para LONG, resistencia para SHORT).
+- Minimo 0.3% de distancia, maximo 2.5%.
+- NUNCA mas alla del 80% de distancia al precio de liquidacion.
 
-TAKE PROFIT:
-- Minimo ratio 2:1 (riesgo:beneficio)
-- Para LONG: en la resistencia mas cercana o siguiente nivel
-- Para SHORT: en el soporte mas cercano o siguiente nivel
+TAKE PROFIT Y CIERRE (HOLD LONGER):
+- El usuario quiere mantener las posiciones mas tiempo para maximizar ganancias.
+- OBJETIVO MINIMO: Busca por lo menos un 2% de movimiento del precio (sin apalancamiento) antes de considerar CLOSE por ganancias, a menos que haya un cambio de tendencia claro o se alcance una resistencia/soporte mayor.
+- Para LONG: en resistencia mayor o si hay agotamiento tras un >2% de subida.
+- Para SHORT: en soporte mayor o si hay agotamiento tras un >2% de caída.
 
-MOVE_SL (gestionar posicion ganadora o Cierre por Tiempo):
-- PnL > 0.8% → mover SL a breakeven (precio de entrada exacto)
-- PnL > 1.5% → mover SL a +0.5% sobre entrada (ganancia minima garantizada)
-- PnL > 3% → trailing agresivo, SL al precio actual menos 1%
-- PnL > 5% → trailing muy agresivo, SL al precio actual menos 0.5%
-- Si el precio se acerca mucho a liquidacion → CLOSE inmediato
-- CIERRE POR TIEMPO: Si la posicion lleva abierta mas de 4.0 horas y el PnL es inferior a 0.5% (estancado), ordena CLOSE para liberar margen.
-- NUNCA mover SL en direccion que aumente la perdida potencial
+MOVE_SL (gestionar posicion ganadora):
+- PnL > 1.0% → mover SL a breakeven (proteccion temprana).
+- PnL > 2.0% → mover SL a +1.0% (asegurar profit parcial).
+- CIERRE POR TIEMPO: Solo ordena CLOSE si la posicion lleva > 12 horas estancada o en contra pero sin tocar SL. Si hay tendencia a favor, MANTEN LA POSICION.
 
 RIESGO POR TRADE (riesgo_pct):
-- Sesion MUY ALTA + 3 timeframes alineados + volumen alto + fear&greed favorable → hasta 8%
-- Condiciones buenas pero no perfectas → 2% a 4%
-- Señal moderada, sesion baja o indicadores mixtos → 0.5% a 1.5%
+- Alta conviccion + indicadores alineados + volumen alto → hasta 8%
+- Condiciones moderadas → 1% a 3%
 - Cualquier duda → HOLD
-
-═══════════════════════════════════════════════════
-TRAILING STOP LOSS
-═══════════════════════════════════════════════════
-
-Al abrir LONG o SHORT debes decidir el trailing_pct.
-El trailing stop se coloca en BingX y protege la posicion segundo a segundo.
-Junto con el stop_loss inicial, el trailing reemplaza el SL dinamicamente.
-
-CRITERIOS para trailing_pct (basado en ATR):
-- Señal muy fuerte, tendencia clara, alta conviccion → 0.5% a 0.8% (ajustado, protege mas)
-- Señal moderada, algo de volatilidad → 1.0% a 1.5% (balance entre proteccion y espacio)
-- Señal con dudas, alta volatilidad detectada → 2.0% a 3.0% (da mas espacio al precio)
-- Sesion de alta volatilidad (overlap EU/NY) → sumar 0.3% al trailing
-- RSI extremo (>75 o <25) → sumar 0.2% (mas espacio para correccion)
-
-EJEMPLO: Si el precio es 70000 y trailing_pct=1.0%:
-- Si BTC sube a 72000, el trailing SL queda en 71280 (72000 * 0.99)
-- Si BTC cae desde 72000 a 71280 → posicion se cierra con ganancia
 
 ═══════════════════════════════════════════════════
 FORMATO DE RESPUESTA — SOLO JSON SIN TEXTO EXTRA
@@ -212,13 +191,11 @@ FORMATO DE RESPUESTA — SOLO JSON SIN TEXTO EXTRA
 {
   "accion": "LONG" | "SHORT" | "HOLD" | "CLOSE" | "MOVE_SL",
   "confianza": 0.00 a 1.00,
-  "riesgo_pct": 0 a 10,
+  "riesgo_pct": 0.5 a 10,
   "stop_loss": precio numerico o null,
   "take_profit": precio numerico o null,
-  "trailing_pct": 0.5 a 3.0,
-  "trailing_pct": 0.5 a 3.0,
   "nuevo_stop_loss": precio numerico o null (solo para MOVE_SL),
-  "razon": "analisis completo: timeframes, niveles clave, sentimiento, sesion, por que este riesgo_pct y trailing_pct"
+  "razon": "analisis completo: timeframes, niveles clave, noticias de Trump, por que este riesgo_pct y por que se mantiene o cierra la posicion"
 }`;
 
     let retries = 3;
