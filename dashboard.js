@@ -487,7 +487,7 @@ async function getDashboardData(period, userId) {
     };
 
     const lastPurchasePrice = await traderSpot.getUltimaCompra(user.id);
-    spotPnl.ultimaCompra = lastPurchasePrice ? lastPurchasePrice.toFixed(2) : '--';
+    spotPnl.ultimaCompra = lastPurchasePrice ? lastPurchasePrice.precio.toFixed(2) : '--';
 
     // AI Futuros: ultima decision de ESTE usuario
     const [aiRowsFut] = await db.execute(
