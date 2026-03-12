@@ -382,7 +382,7 @@ async function getDashboardData(period, userId) {
     const traderSpot = require('./src/spot/trader');
 
     const [balFut, balSpot, ethPrecioReal] = await Promise.all([
-        traderFuturos.getActualBalance(user).catch(() => 0),
+        traderFuturos.getBalance(user).catch(() => 0),
         traderSpot.getSpotBalance(user).catch(() => ({ usdt: 0, eth: 0 })),
         traderSpot.getSpotPrice('ETH-USDT').catch(() => null)
     ]);

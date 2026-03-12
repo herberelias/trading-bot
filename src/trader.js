@@ -18,8 +18,8 @@ function getSignature(params, secret) {
  * Helper para peticiones a BingX
  */
 async function request(method, path, params = {}, user = null) {
-    const api_key = user ? user.bingx_key : process.env.BINGX_API_KEY;
-    const secret = user ? user.bingx_secret : process.env.BINGX_SECRET;
+    const api_key = (user && user.bingx_key) ? user.bingx_key : process.env.BINGX_API_KEY;
+    const secret = (user && user.bingx_secret) ? user.bingx_secret : process.env.BINGX_SECRET;
     
     params.timestamp = Date.now();
     const signature = getSignature(params, secret);
