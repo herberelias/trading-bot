@@ -427,27 +427,44 @@ async function getDashboardData(period, userId) {
 
     let sTradesRaw = [];
     if (user.modo_real) {
-        const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 50);
-        let orders = bingxSpot.filter(o => o.status === 4 || o.status === 2 || o.status === 'FILLED' || o.status === 'PARTIALLY_FILLED');
-        
-        // Aplicar filtro de fecha (period)
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        try {
+            const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 50);
+            let orders = Array.isArray(bingxSpot) ? bingxSpot : [];
+            
+            // Filtro de estado robusto
+            orders = orders.filter(o => {
+                const s = String(o.status).toUpperCase();
+                return s === '4' || s === '2' || s === 'FILLED' || s === 'PARTIALLY_FILLED' || s === 'SUCCESS';
+            });
 
-        if (period === 'today') {
-            orders = orders.filter(o => new Date(o.time).toISOString().split('T')[0] === todayStr);
-        } else if (period === '7days') {
-            orders = orders.filter(o => new Date(o.time) >= last7Days);
+            // Filtro de periodo
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+            if (period === 'today') {
+                orders = orders.filter(o => new Date(o.time).toISOString().split('T')[0] === todayStr);
+            } else if (period === '7days') {
+                orders = orders.filter(o => new Date(o.time) >= last7Days);
+            }
+
+            sTradesRaw = orders.map(o => {
+                const qQty = parseFloat(o.cummulativeQuoteQty || 0);
+                const eQty = parseFloat(o.executedQty || 0);
+                const price = parseFloat(o.price || 0);
+                const side = String(o.side).toUpperCase(); // Asegurar BUY/SELL
+                
+                return {
+                    accion: (side === 'BUY' || side === '1') ? 'BUY' : 'SELL',
+                    precio: price > 0 ? price : (eQty > 0 ? qQty / eQty : 0),
+                    monto_usdt: qQty,
+                    hora: o.time,
+                    isReal: true
+                };
+            });
+        } catch (e) {
+            console.error('[DASHBOARD] Error procesando Spot Real:', e.message);
         }
-
-        sTradesRaw = orders.map(o => ({
-            accion: o.side,
-            precio: parseFloat(o.price || 0) > 0 ? o.price : (o.cummulativeQuoteQty / o.executedQty),
-            monto_usdt: o.cummulativeQuoteQty,
-            hora: o.time,
-            isReal: true
-        }));
     } else {
         const [rows] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
         sTradesRaw = rows;
