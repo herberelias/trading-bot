@@ -21,6 +21,10 @@ async function request(method, path, params = {}, user = null) {
     const api_key = (user && user.bingx_key) ? user.bingx_key : process.env.BINGX_API_KEY;
     const secret = (user && user.bingx_secret) ? user.bingx_secret : process.env.BINGX_SECRET;
     
+    if (!api_key || api_key === 'TU_API_KEY_AQUI') {
+        logger.error(`[${user?.nombre || 'Global'}] API KEY no configurada o es la de ejemplo`);
+    }
+    
     params.timestamp = Date.now();
     const signature = getSignature(params, secret);
     const queryString = Object.keys(params).sort().map(key => `${key}=${encodeURIComponent(params[key])}`).join('&') + `&signature=${signature}`;
