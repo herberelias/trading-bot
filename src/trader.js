@@ -46,11 +46,14 @@ async function getBalance(user = null) {
     try {
         const res = await request('GET', '/openApi/swap/v2/user/balance', {}, user);
         if (res && res.data && res.data.balance) {
-            const balanceObj = Array.isArray(res.data.balance) ? res.data.balance[0] : res.data.balance;
-            const saldo = balanceObj.balance || balanceObj.equity || balanceObj.availableMargin;
-            if (saldo !== undefined) return parseFloat(saldo);
+            const balances = Array.isArray(res.data.balance) ? res.data.balance : [res.data.balance];
+            // Buscar específicamente el balance en USDT
+            const usdtBal = balances.find(b => b.asset === 'USDT');
+            if (usdtBal) {
+                const saldo = usdtBal.balance || usdtBal.equity || usdtBal.availableMargin;
+                return parseFloat(saldo || 0);
+            }
         }
-        logger.error(`[${user?.nombre || 'Global'}] Estructura de balance inesperada:`, JSON.stringify(res));
         return 0;
     } catch (e) {
         logger.error(`[${user?.nombre || 'Global'}] Error al obtener balance:`, e.message);
