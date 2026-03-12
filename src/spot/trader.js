@@ -73,13 +73,17 @@ async function getTodayTradesSpot(userId) {
 async function getUltimaCompra(userId) {
     try {
         const query = `
-            SELECT precio_entrada
+            SELECT precio_entrada, timestamp_apertura
             FROM spot_trades
             WHERE user_id = ? AND accion = 'BUY'
             ORDER BY timestamp_apertura DESC LIMIT 1
         `;
         const [rows] = await db.execute(query, [userId]);
-        return rows.length > 0 ? parseFloat(rows[0].precio_entrada) : null;
+        if (rows.length === 0) return null;
+        return {
+            precio: parseFloat(rows[0].precio_entrada),
+            fecha: new Date(rows[0].timestamp_apertura)
+        };
     } catch(e) {
         return null;
     }

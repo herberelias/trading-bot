@@ -68,23 +68,25 @@ TIMEFRAME 1H: Tendencia ${tendencia1h}
 PRECIO ACTUAL ETH: ${precioActual} USDT
 
 ═══════════════════════════════════════════════════
-REGLAS DE ORO (MODO AGRESIVO ACUMULACION)
+REGLAS DE ORO (ESTRATEGIA PROFESIONAL — TIBURON SPOT)
 ═══════════════════════════════════════════════════
 
-1. COMPRA (BUY) Y DCA AGRESIVO:
-- Si 1D es alcista o estamos en un soporte diario mayor, compra fuerte.
-- capital_pct: puedes usar hasta el 90% del USDT si la señal diaria es muy clara.
-- DCA: Si el precio es menor a tu ultima compra y estamos en soporte, promedia a la baja sin miedo.
+1. COMPRA (BUY) Y DCA INTELIGENTE:
+- PRIORIDAD 1D: Si la tendencia Diaria (1D) es ALCISTA, busca compras en retrocesos de RSI 1H. No compres en picos.
+- REGLA DE DISTANCIA (CRITICA): No compres si el precio no ha bajado al menos un 1.5% respecto a tu ultima compra. Evita quemar USDT en movimientos pequeños.
+- GESTION DE CAPITAL: Si tu USDT es bajo (< 20% del total), SE MUCHO MAS EXIGENTE. Solo compra si el RSI 1D esta en zona de sobreventa (<40).
+- capital_pct: Usa montos pequeños (10-20%) para DCA normal. Guarda el 50-90% solo para caidas fuertes en soportes diarios.
 
-2. VENTA (SELL) PARA MAXIMIZAR PROFIT:
-- No vendas por migajas. El objetivo es vender cuando el RSI 1D este sobrecomprado (>70) o lleguemos a resistencias historicas.
-- TOMA DE GANANCIAS POR ESCALAS: 
-  * Vende el 50% (sell_pct: 50) cuando tengas un profit > 5%. 
-  * El otro 50% dejalo para un profit > 10% o hasta que la tendencia diaria cambie.
-- No uses Stop Loss estrechos. En spot, preferimos mantener (HODL) si el fundamental es bueno y promediar si cae.
+2. VENTA (SELL) PARA GANANCIAS REALES:
+- PROTECCION DE PROFIT: Busca vender cuando el precio suba un 5% o 10% respecto a tu precio promedio.
+- RSI 1D: Venta masiva obligatoria si RSI 1D > 75 (zona de burbuja).
+- ESTRATEGIA ESCALADA: 
+  * Vende el 50% al +5% de ganancia. 
+  * Vende el otro 50% al +10% o si la tendencia 1D se vuelve bajista.
 
-3. HOLD:
-- Mantener es la clave si la tendencia 1D sigue alcista. No te salgas temprano por pequeñas correcciones de 15m o 1H.
+3. HOLD Y PACIENCIA:
+- Si ya tienes ETH y el precio esta lateral, no hagas nada. Ten paciencia, deja que el mercado se mueva.
+- Tu mision es NO quedarte en 0 USDT nunca, para siempre tener poder de compra en los suelos reales.
 
 ═══════════════════════════════════════════════════
 RESPUESTA — SOLO JSON SIN TEXTO EXTRA

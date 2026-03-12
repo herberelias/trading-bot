@@ -65,7 +65,7 @@ async function runSpotBot() {
                 logger.info(`[SPOT] ---- Procesando: ${user.nombre} (ID: ${user.id}) ----`);
 
                 // Contexto específico del usuario (su balance, su historial)
-                const [balanceSpot, historialHoy, racha, ultimaCompraPrecio] = await Promise.all([
+                const [balanceSpot, historialHoy, racha, ultimaCompra] = await Promise.all([
                     traderSpot.getSpotBalance(user),
                     traderSpot.getTodayTradesSpot(user.id),
                     context.getRachaActual(user),
@@ -80,7 +80,8 @@ async function runSpotBot() {
                 const decision = await aiSpot.consultarGeminiSpot(
                     indicators15m, indicators1h, indicators4h, indicators1d,
                     precioActual, balanceSpot, historialHoy,
-                    fearGreed, soportesResistencias, sesionMercado, racha, ultimaCompraPrecio,
+                    fearGreed, soportesResistencias, sesionMercado, racha, 
+                    ultimaCompra?.precio || null,
                     TrumpNews
                 );
 
@@ -91,8 +92,22 @@ async function runSpotBot() {
 
                 logger.info(`[SPOT][${user.nombre}] IA: ${decision.accion} | Confianza: ${decision.confianza}`);
 
-                // 5. Validar riesgo
-                const riskResult = await riskSpot.checkRiskPermissionsSpot(decision, tieneEth, user);
+                // 5. Validar riesgo y Reglas de Tiburón (Distancia y Tiempo)
+                let riskResult = await riskSpot.checkRiskPermissionsSpot(decision, tieneEth, user);
+
+                if (riskResult.canTrade && decision.accion === 'BUY' && ultimaCompra) {
+                    // REGLA 1: Distancia de precio (Min 1.5% caída)
+                    const diffPrecio = ((ultimaCompra.precio - precioActual) / ultimaCompra.precio) * 100;
+                    if (diffPrecio < 1.5) {
+                        riskResult = { canTrade: false, reason: `Precio muy cercano a ultima compra (${diffPrecio.toFixed(2)}% < 1.5%)` };
+                    }
+
+                    // REGLA 2: Tiempo (Min 4 horas entre compras)
+                    const horasDesdeUltima = (Date.now() - ultimaCompra.fecha.getTime()) / (1000 * 60 * 60);
+                    if (horasDesdeUltima < 4) {
+                        riskResult = { canTrade: false, reason: `Solo han pasado ${horasDesdeUltima.toFixed(1)}h de la ultima compra (Min 4h)` };
+                    }
+                }
 
                 // 6. Guardar decision CON user_id
                 await logger.logDecisionSpot({
