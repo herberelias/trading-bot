@@ -237,7 +237,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                 ${data.aiSpot ? `
                 <div style="text-align:right;">
                     <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800;">CONFIANZA</div>
-                    <div style="font-size:1.8rem; font-weight:900; color:var(--success); line-height:1;">${Math.round(data.aiSpot.confianza * 100)}%</div>
+                    <div style="font-size:1.8rem; font-weight:900; color:${data.aiSpot.accion === 'HOLD / BLOQUEADO' ? 'var(--text-dim)' : 'var(--success)'}; line-height:1;">${Math.round(data.aiSpot.confianza * 100)}%</div>
                     <div style="font-size:0.7rem; color:var(--warning); margin-top:3px;">${data.aiSpot.hace}</div>
                 </div>` : ''}
             </div>
@@ -530,7 +530,7 @@ async function getDashboardData(period, userId) {
             hace:      Math.round((Date.now() - new Date(lastAIFut.fecha)) / 60000) + ' min'
         } : null,
         aiSpot: lastAISpot ? {
-            accion:    (lastAISpot.confianza >= user.confianza_minima) ? lastAISpot.accion : 'HOLD / BLOQUEADO',
+            accion:    (lastAISpot.confianza >= (user.confianza_minima_spot || user.confianza_minima)) ? lastAISpot.accion : 'HOLD / BLOQUEADO',
             razon:     lastAISpot.razon,
             confianza: lastAISpot.confianza,
             rsi:       lastAISpot.rsi || '--',
@@ -821,8 +821,12 @@ app.get('/perfil', requireAuth, async (req, res) => {
                         <input type="number" name="perdida_maxima_diaria" value="${u.perdida_maxima_diaria || 10}" step="0.5" min="1">
                     </div>
                     <div class="field">
-                        <label>Confianza mínima IA (0–1)</label>
-                        <input type="number" name="confianza_minima" value="${u.confianza_minima || 0.75}" step="0.05" min="0.5" max="1">
+                        <label>Confianza mín. Futuros (0-1)</label>
+                        <input type="number" name="confianza_minima" value="${u.confianza_minima || 0.70}" step="0.01" min="0.5" max="1">
+                    </div>
+                    <div class="field">
+                        <label>Confianza mín. Spot (0-1)</label>
+                        <input type="number" name="confianza_minima_spot" value="${u.confianza_minima_spot || 0.65}" step="0.01" min="0.5" max="1">
                     </div>
                 </div>
                 <div class="restrict-note">
@@ -850,13 +854,13 @@ app.get('/perfil', requireAuth, async (req, res) => {
 
 app.post('/perfil/update', requireAuth, async (req, res) => {
     const userId = req.session.userId;
-    const { bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, password } = req.body;
+    const { bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, confianza_minima_spot, password } = req.body;
     try {
         // Solo campos permitidos para user — NO modo_real, activo, role
         let query = `UPDATE users SET 
             bingx_key = ?, bingx_secret = ?, apalancamiento = ?, 
-            riesgo_por_trade = ?, perdida_maxima_diaria = ?, confianza_minima = ?`;
-        let values = [bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima];
+            riesgo_por_trade = ?, perdida_maxima_diaria = ?, confianza_minima = ?, confianza_minima_spot = ?`;
+        let values = [bingx_key, bingx_secret, apalancamiento, riesgo_por_trade, perdida_maxima_diaria, confianza_minima, confianza_minima_spot];
         if (password && password.trim() !== '') {
             query += `, password = ?`;
             values.push(password.trim());

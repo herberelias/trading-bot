@@ -1,13 +1,13 @@
 require('dotenv').config();
 const logger = require('./logger');
 
-async function checkRiskPermissions(decision, isPositionOpen) {
-    const minConfidence = parseFloat(process.env.CONFIANZA_MINIMA) || 0.55;
+async function checkRiskPermissions(decision, isPositionOpen, user = null) {
+    const minConfidence = user ? parseFloat(user.confianza_minima) : (parseFloat(process.env.CONFIANZA_MINIMA) || 0.55);
 
     // Unico filtro: confianza minima
     if (decision.confianza < minConfidence) {
         const msg = `Confianza insuficiente (${decision.confianza} < ${minConfidence}). Descartado.`;
-        logger.info(`BLOQUEADO: ${msg}`);
+        logger.info(`[${user?.nombre || 'Global'}] BLOQUEADO: ${msg}`);
         return { canTrade: false, reason: msg };
     }
 
