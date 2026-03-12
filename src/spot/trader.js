@@ -196,11 +196,25 @@ async function getSpotPrice(symbol) {
     }
 }
 
+async function getHistory(user, symbol = 'ETH-USDT', limit = 20) {
+    try {
+        const res = await request('GET', '/openApi/spot/v1/trade/allOrders', user, { symbol, limit });
+        if (res && res.code === 0) {
+            return res.data || [];
+        }
+        return [];
+    } catch (e) {
+        logger.error(`[SPOT] Error obteniendo historial de BingX:`, e.message);
+        return [];
+    }
+}
+
 module.exports = {
     getSpotBalance,
     getSpotPrice,
     getTodayTradesSpot,
     getUltimaCompra,
     executeBuy,
-    executeSell
+    executeSell,
+    getHistory
 };

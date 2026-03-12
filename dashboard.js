@@ -425,7 +425,22 @@ async function getDashboardData(period, userId) {
         fTradesRaw = rows;
     }
 
-    const [sTradesRaw] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
+    let sTradesRaw = [];
+    if (user.modo_real) {
+        const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 20);
+        sTradesRaw = bingxSpot
+            .filter(o => o.status === 4 || o.status === 2) // 4 = FILLED, 2 = PARTIALLY_FILLED
+            .map(o => ({
+                accion: o.side,
+                precio: o.price || o.cummulativeQuoteQty / o.executedQty,
+                monto_usdt: o.cummulativeQuoteQty,
+                hora: o.time,
+                isReal: true
+            }));
+    } else {
+        const [rows] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE ${tf} ORDER BY hora DESC LIMIT 20`);
+        sTradesRaw = rows;
+    }
 
     const fmt = (d) => new Date(d).toLocaleString('es-SV', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
     const fmtUSDT = (v) => parseFloat(v || 0) > 0 ? `$${parseFloat(v).toFixed(2)} USDT` : '--';
