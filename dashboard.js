@@ -458,11 +458,12 @@ async function getDashboardData(period, userId) {
             // Ordenar por fecha descendente
             sTradesRaw.sort((a, b) => b.hora - a.hora);
 
-            // Filtrado opcional por periodo para las estadísticas, pero no para la visibilidad si el portfolio tiene algo
+            // IMPORTANTE: Para las estadísticas del día aplicamos el filtro, 
+            // pero para la tabla NO, para que siempre se vea el historial.
             if (period === 'today') {
                 const startOfDay = new Date().setHours(0,0,0,0);
-                // Si queremos ser estrictos para las estadísticas del cuadro superior:
-                // Pero para la tabla inferior mostraremos los últimos 20 siempre
+                // Aquí podrías filtrar sStats si fuera necesario, pero el dashboard
+                // usa sTradesRaw para el cálculo de tBought/tSold en modo_real
             }
         } catch (e) {
             console.error('[DASHBOARD] Error procesando Spot Real:', e.message);
