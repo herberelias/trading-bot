@@ -6,6 +6,10 @@ const logger = {
         const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
         console.log(`[${timestamp}] ${msg}`);
     },
+    warn: (msg) => {
+        const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        console.warn(`[${timestamp}] ⚠️ WARN: ${msg}`);
+    },
     error: (msg, err) => {
         const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
         console.error(`[${timestamp}] ❌ ERROR: ${msg}`, err || '');
@@ -64,7 +68,7 @@ const logger = {
                 trade.precio_entrada,
                 trade.stop_loss || null,
                 trade.take_profit || null,
-                trade.cantidad || 0, // Aquí usabas "cantidad", en la db es "capital_usado"
+                trade.cantidad || 0,
                 process.env.APALANCAMIENTO || 1,
                 modo_str,
                 trade.trailing_pct || null

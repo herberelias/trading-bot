@@ -115,7 +115,7 @@ async function executeBuy(user, decision, precioActual) {
         const montoCompra = usdtBalance * 0.1; // Ejemplo: 10% del balance
         
         if (montoCompra < 6) {
-            logger.warn(`[SPOT] Saldo insuficiente para ${user.nombre}: ${usdtBalance} USDT`);
+            logger.info(`[SPOT] Saldo insuficiente para ${user.nombre}: ${usdtBalance} USDT`);
             return;
         }
 
