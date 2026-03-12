@@ -136,6 +136,11 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         }
         select:hover { border-color: var(--primary); }
 
+        /* Manual Buttons */
+        .btn-buy-manual { background: var(--success); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.65rem; cursor: pointer; transition: 0.2s; }
+        .btn-sell-manual { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.65rem; cursor: pointer; transition: 0.2s; }
+        .btn-buy-manual:hover, .btn-sell-manual:hover { opacity: 0.8; transform: translateY(-1px); }
+
         /* Mobile Adjustments */
         @media (max-width: 600px) {
             header { padding: 1rem; justify-content: center; }
@@ -301,7 +306,11 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title" style="color:var(--success);">ETH Spot</div>
-                        <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">${data.spot.totalTrades} ops</span>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button onclick="manualTrade('BUY')" class="btn-buy-manual">COMPRAR</button>
+                            <button onclick="manualTrade('SELL')" class="btn-sell-manual">VENDER</button>
+                            <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700; margin-left:8px;">${data.spot.totalTrades} ops</span>
+                        </div>
                     </div>
 
                     <!-- PNL RESUMEN SPOT -->
@@ -640,6 +649,34 @@ app.post('/login', async (req, res) => {
     } catch (e) { res.send(loginHTML('Error de sistema')); }
 });
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
+
+// API para trading manual desde dashboard
+app.post('/api/spot/manual', requireAuth, async (req, res) => {
+    const { accion } = req.body;
+    const userId = req.session.userId;
+    
+    try {
+        const [userRow] = await db.execute('SELECT * FROM users WHERE id = ?', [userId]);
+        const user = userRow[0];
+        if (!user) return res.status(404).json({ success: false, msg: 'Usuario no encontrado' });
+
+        const traderSpot = require('./src/spot/trader');
+        const precioActual = await traderSpot.getSpotPrice('ETH-USDT');
+
+        if (accion === 'BUY') {
+            await traderSpot.executeBuy(user, { capital_pct: 50, confianza: 1 }, precioActual);
+            res.json({ success: true, msg: 'Compra ejecutada correctamente' });
+        } else if (accion === 'SELL') {
+            await traderSpot.executeSell(user, { sell_pct: 100, confianza: 1 }, precioActual);
+            res.json({ success: true, msg: 'Venta ejecutada correctamente' });
+        } else {
+            res.status(400).json({ success: false, msg: 'Accion no valida' });
+        }
+    } catch (e) {
+        console.error('[MANUAL SPOT] Error:', e.message);
+        res.status(500).json({ success: false, msg: 'Error en el servidor: ' + e.message });
+    }
+});
 
 // ═══════════════════════════════════════════
 // ADMIN PANEL
