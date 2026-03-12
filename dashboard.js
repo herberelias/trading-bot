@@ -429,7 +429,7 @@ async function getDashboardData(period, userId) {
     if (user.modo_real) {
         const bingxSpot = await traderSpot.getHistory(user, 'ETH-USDT', 20);
         sTradesRaw = bingxSpot
-            .filter(o => o.status === 4 || o.status === 2) // 4 = FILLED, 2 = PARTIALLY_FILLED
+            .filter(o => o.status === 4 || o.status === 2 || o.status === 'FILLED' || o.status === 'PARTIALLY_FILLED')
             .map(o => ({
                 accion: o.side,
                 precio: o.price || o.cummulativeQuoteQty / o.executedQty,
