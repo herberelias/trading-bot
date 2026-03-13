@@ -86,12 +86,11 @@ async function runSpotBot() {
         // 3. IA elije compras de la lista dinámica (Descubrimiento)
         const candidatesForDiscovery = candidatos.filter(c => topMercado.includes(c.symbol));
         const TrumpNews = "Donald Trump maintains a pro-crypto stance, crypto-friendly regulation is expected.";
-        const evaluacion = await aiSpot.evaluarCandidatosSpot(candidatesForDiscovery, TrumpNews);
+        let evaluacion = await aiSpot.evaluarCandidatosSpot(candidatesForDiscovery, TrumpNews);
 
-        if (!evaluacion || !evaluacion.mejores_candidatos || evaluacion.mejores_candidatos.length === 0) {
-            logger.info('[SPOT] IA analizó el mercado y decidió no comprar nada en este ciclo (HOLD general).');
-            // Aun asi procesamos el bucle por usuario para ver si hay ventas pendientes
-            evaluacion.mejores_candidatos = []; 
+        if (!evaluacion || !evaluacion.mejores_candidatos) {
+            logger.info('[SPOT] IA analizó el mercado y decidió no comprar nada en este ciclo (o respuesta inválida).');
+            evaluacion = { mejores_candidatos: [] }; 
         }
 
         const nombresMejores = evaluacion.mejores_candidatos.map(c => c.symbol);
