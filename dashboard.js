@@ -328,7 +328,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                     </div>
 
                     <div style="background:rgba(15,23,42,0.5); border-radius:14px; padding:10px 15px; margin-bottom:1.25rem; display:flex; justify-content:space-between; border: 1px solid var(--border);">
-                        <div style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">Balance: <span style="color:#a78bfa">${data.spotPnl.ethActual} ETH</span></div>
+                        <div style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">Balance: <span style="color:#a78bfa">${data.spotPnl.ethActual}</span></div>
                         <div style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">Valor: <span style="color:var(--success)">$${data.spotPnl.valorEthActual}</span></div>
                     </div>
 
@@ -384,7 +384,7 @@ async function getDashboardData(period, userId) {
     
     // Calcular valor total de activos en watchlist (o todos los que tengan valor > 0.001)
     let totalValueAssets = 0;
-    let mainAssetStr = "Diversificado";
+    let mainAssetStr = "Sin posiciones activas";
     let maxVal = 0;
 
     for (const b of allBalances) {
