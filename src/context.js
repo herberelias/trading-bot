@@ -124,33 +124,44 @@ function getSesionMercado() {
 }
 
 // Calcular racha actual de trades (wins/losses consecutivos)
-async function getRachaActual() {
+async function getRachaActual(user = null) {
     try {
-        const query = `
-            SELECT direccion AS accion, capital_usado, timestamp_apertura
+        const userId = user ? user.id : 1;
+        const modo = user ? (user.modo_real ? 'REAL' : 'SIMULADO') : (process.env.MODO_REAL === 'true' ? 'REAL' : 'SIMULADO');
+
+        const queryHistory = `
+            SELECT id, direccion AS accion, capital_usado, timestamp_apertura, timestamp_cierre, resultado, ganancia_perdida
             FROM bot_trades
-            WHERE modo = 'REAL' OR modo = 'SIMULADO'
+            WHERE modo = ? AND user_id = ?
             ORDER BY timestamp_apertura DESC
             LIMIT 10
         `;
-        const [rows] = await db.execute(query);
+        const [rows] = await db.execute(queryHistory, [modo, userId]);
 
         if (!rows || rows.length === 0) {
-            return { racha: 0, tipo: 'SIN_HISTORIAL', descripcion: 'Sin trades previos' };
+            return { racha: 0, tipo: 'SIN_HISTORIAL', descripcion: 'Sin trades previos', ultimoCerrado: null };
         }
 
-        // Por ahora contamos trades del dia como referencia
         const hoy = new Date().toISOString().split('T')[0];
-        const tradesHoy = rows.filter(r => r.timestamp_apertura && r.timestamp_apertura.toString().includes(hoy));
+        const tradesHoy = rows.filter(r => r.timestamp_apertura && r.timestamp_apertura.toISOString().includes(hoy));
+        
+        // Obtener el último trade cerrado para detectar SL reciente
+        const ultimoCerrado = rows.find(r => r.timestamp_cierre !== null);
 
         return {
             totalRecientes: rows.length,
             tradesHoy: tradesHoy.length,
-            descripcion: `${tradesHoy.length} trades hoy, ${rows.length} trades recientes en total`
+            descripcion: `${tradesHoy.length} trades hoy, ${rows.length} trades recientes en total`,
+            ultimoCerrado: ultimoCerrado ? {
+                accion: ultimoCerrado.accion,
+                resultado: ultimoCerrado.resultado,
+                cerradoHace: Math.round((Date.now() - new Date(ultimoCerrado.timestamp_cierre)) / 60000), // minutos
+                pnl: ultimoCerrado.ganancia_perdida
+            } : null
         };
     } catch (error) {
         logger.error('Error obteniendo racha', error.message);
-        return { racha: 0, tipo: 'ERROR', descripcion: 'Sin datos de racha' };
+        return { racha: 0, tipo: 'ERROR', descripcion: 'Sin datos de racha', ultimoCerrado: null };
     }
 }
 

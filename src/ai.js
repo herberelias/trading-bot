@@ -113,8 +113,12 @@ REGLAS DE ORO PARA MAXIMIZAR DINERO (ESTRATEGIA TIBURON)
 - NO CIERRES por miedo. Solo usa CLOSE si hay un cambio de tendencia real (ej: cruce de EMAs en contra en 15m) o si el precio toca una resistencia/soporte mayor y rebota.
 - PnL > 1.0% (mov. precio) → MOVE_SL a breakeven obligatoriamente. Trade gratuito.
 - PnL > 2.5% (mov. precio) → MOVE_SL a +1.5% para asegurar ganancias mínimas jugosas.
--Tu decides cuanto capital arriesgar en cada operacion.
-4. CIERRE POR TIEMPO:
+
+4. REGLA ANTI-VENTILADOR (POST-SL):
+- Si el ultimo trade cerrado fue un LOSS o sacado por SL hace menos de 60 minutos, NO vuelvas a abrir la misma direccion (ej: si te saco un LONG, no abras LONG de nuevo de inmediato) a menos que haya una ruptura de estructura masiva. Preferiblemente espera a que el precio se asiente.
+- El historial indica: ${racha ? (racha.ultimoCerrado ? `Ultimo trade: ${racha.ultimoCerrado.resultado} (${racha.ultimoCerrado.accion}) cerrado hace ${racha.ultimoCerrado.cerradoHace} min.` : 'Sin trades recientes.') : 'Sin datos.'}
+
+5. CIERRE POR TIEMPO:
 - Solo si la posicion lleva > 24 horas sin moverse y el mercado esta muerto (volumen bajo).
 
 ═══════════════════════════════════════════════════
