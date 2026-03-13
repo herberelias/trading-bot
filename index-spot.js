@@ -14,17 +14,38 @@ const WATCHLIST = ['ETH-USDT', 'BTC-USDT', 'SOL-USDT', 'NEAR-USDT', 'FET-USDT', 
 async function runSpotBot() {
     try {
         logger.info(`========================================`);
-        logger.info(`[SPOT] Iniciando ciclo multi-moneda (Scanner)`);
+        logger.info(`[SPOT] Iniciando ciclo de Vigilancia Total (Scanner)`);
 
         // 0. Usuarios activos
         const [usuarios] = await db.execute('SELECT * FROM users WHERE activo = 1');
         if (usuarios.length === 0) return;
 
-        // 1. Escanear Watchlist
-        logger.info(`[SPOT] Escaneando: ${WATCHLIST.join(', ')}`);
+        // 1. Identificar todas las monedas que hay que vigilar (Watchlist + lo que tienen los usuarios)
+        const scanList = new Set(WATCHLIST);
+        const userBalancesMap = new Map(); // Para no repetir llamadas por usuario si tienen balances iguales (opcional)
+
+        for (const user of usuarios) {
+            try {
+                const balances = await traderSpot.getFullSpotBalance(user);
+                userBalancesMap.set(user.id, balances);
+                
+                balances.forEach(b => {
+                    const amount = parseFloat(b.free);
+                    if (amount > 0.0001 && b.asset !== 'USDT' && b.asset !== 'USDC') {
+                        scanList.add(`${b.asset}-USDT`);
+                    }
+                });
+            } catch (err) {
+                logger.error(`[SPOT] Error obteniendo balances de ${user.nombre}:`, err.message);
+            }
+        }
+
+        const finalScanList = Array.from(scanList);
+        logger.info(`[SPOT] Escaneando portfolio completo: ${finalScanList.join(', ')}`);
+
+        // 2. Escanear Mercado
         const candidatos = [];
-        
-        for (const symbol of WATCHLIST) {
+        for (const symbol of finalScanList) {
             try {
                 const [c15m, c1h, c4h, c1d] = await Promise.all([
                     marketSpot.getCandles15mSpot(symbol),
@@ -52,13 +73,14 @@ async function runSpotBot() {
         }
 
         if (candidatos.length === 0) {
-            logger.error('[SPOT] No se pudieron obtener datos de ningun candidato.');
+            logger.error('[SPOT] No se pudieron obtener datos de mercado.');
             return;
         }
 
-        // 2. IA elije la mejor oportunidad
-        const TrumpNews = "Donald Trump maintains a pro-crypto stance, favorable regulation and Bitcoin reserves are key topics.";
-        const evaluacion = await aiSpot.evaluarCandidatosSpot(candidatos, TrumpNews);
+        // 3. IA elije compras SOLO de la Watchlist principal (Filtro anti-memecoins)
+        const candidatosParaCompra = candidatos.filter(c => WATCHLIST.includes(c.symbol));
+        const TrumpNews = "Donald Trump maintains a pro-crypto stance, crypto-friendly regulation is expected.";
+        const evaluacion = await aiSpot.evaluarCandidatosSpot(candidatosParaCompra, TrumpNews);
 
         if (!evaluacion || !evaluacion.mejores_candidatos || evaluacion.mejores_candidatos.length === 0) {
             logger.error('[SPOT] IA no pudo elegir candidatos.');
@@ -81,19 +103,17 @@ async function runSpotBot() {
             try {
                 logger.info(`[SPOT] ---- Procesando: ${user.nombre} ----`);
 
-                // 1. Obtener todos los balances del usuario
-                const allBalances = await traderSpot.getFullSpotBalance(user);
+                // 1. Usar balances ya obtenidos
+                const allBalances = userBalancesMap.get(user.id) || await traderSpot.getFullSpotBalance(user);
                 const usdtBalance = parseFloat(allBalances.find(b => b.asset === 'USDT')?.free || 0);
 
-                // 2. Identificar qué activos de la Watchlist tiene el usuario
-                const heldInWatchlist = WATCHLIST.filter(symbol => {
-                    const asset = symbol.split('-')[0];
-                    const bal = allBalances.find(b => b.asset === asset);
-                    return bal && parseFloat(bal.free) > 0.0001;
-                });
+                // 2. Identificar qué activos del escaneo tiene el usuario
+                const heldAssets = allBalances
+                    .filter(b => parseFloat(b.free) > 0.0001 && b.asset !== 'USDT' && b.asset !== 'USDC')
+                    .map(b => `${b.asset}-USDT`);
 
-                // 3. Monedas a evaluar: lo que ya tiene + todos los mejores candidatos
-                const targets = [...new Set([...heldInWatchlist, ...nombresMejores])];
+                // 3. Monedas a evaluar: lo que ya tiene (esté o no en watchlist) + todas las recomendaciones de compra
+                const targets = [...new Set([...heldAssets, ...nombresMejores])];
                 
                 for (const symbol of targets) {
                     const candidate = candidatos.find(c => c.symbol === symbol);
