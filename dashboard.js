@@ -533,7 +533,8 @@ async function getDashboardData(period, userId) {
             razon:     lastAISpot.razon,
             confianza: lastAISpot.confianza,
             rsi:       lastAISpot.rsi || '--',
-            hace:      Math.round((Date.now() - new Date(lastAISpot.fecha)) / 60000) + ' min'
+            hace:      Math.round((Date.now() - new Date(lastAISpot.fecha)) / 60000) + ' min',
+            par:       lastAISpot.par || lastAISpot.symbol || 'SCANNER'
         } : null,
         chart,
         daily: dailyRows.map(r=>({ fecha: r.fecha, pnl: parseFloat(r.pnl).toFixed(2), total: r.total }))

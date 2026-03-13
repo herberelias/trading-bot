@@ -84,14 +84,15 @@ const logger = {
         try {
             const query = `
                 INSERT INTO spot_decisions (
-                    user_id, par, precio_actual, rsi, ema20, ema50, macd,
+                    user_id, symbol, par, precio_actual, rsi, ema20, ema50, macd,
                     volumen_ratio, accion, confianza, razon,
                     precio_objetivo, stop_loss_ref, ejecutado,
                     motivo_no_ejecutado, fecha, modo_real
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
             `;
             const values = [
                 decision.user_id || 1,
+                decision.symbol || process.env.PAR_SPOT || 'ETH-USDT',
                 decision.symbol || process.env.PAR_SPOT || 'ETH-USDT',
                 decision.precioActual,
                 decision.rsi,
