@@ -449,8 +449,10 @@ async function checkAndCloseTrades(user = null) {
 
 async function executeTrade(decision, currentPrice, user = null) {
     const isReal = user ? user.modo_real : (process.env.MODO_REAL === 'true');
-    const apalancamiento = user ? user.apalancamiento : (parseFloat(process.env.APALANCAMIENTO) || 10);
-    const riesgo_pct = user ? user.riesgo_por_trade : (parseFloat(process.env.RIESGO_POR_TRADE) || 1);
+    
+    // La IA ahora decide el apalancamiento y el riesgo
+    const apalancamiento = decision.apalancamiento || (user ? user.apalancamiento : (parseFloat(process.env.APALANCAMIENTO) || 10));
+    const riesgo_pct = decision.riesgo_pct || (user ? user.riesgo_por_trade : (parseFloat(process.env.RIESGO_POR_TRADE) || 1));
     const userId = user ? user.id : 1;
 
     if (!isReal) {
