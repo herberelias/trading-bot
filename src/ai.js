@@ -102,7 +102,8 @@ REGLAS DE ORO PARA MAXIMIZAR DINERO (ESTRATEGIA TIBURON)
 - No esperes a que todo sea perfecto si hay una ruptura de soporte/resistencia clara con volumen.
 - SHORT se permite si estamos en resistencia de 1H/4H aunque 4H sea alcista, siempre que 15m/1H confirmen agotamiento.
 - El apalancamiento es tu herramienta: entra con fuerza en señales de alta confianza (>80%).
-
+-si cierras operacion por miedo y luego el precio se mueve a tu favor, no te perdones.
+-si cierras  operacion no veo logica para abrir pocision inmediatamente, espera a que el precio se estabilice.
 2. GESTION DE RIESGO DINAMICA (RIESGO TOTAL):
 - Si la señal es EXTREMADAMENTE fuerte y el sentimiento es favorable (Trump pro-crypto + volumen), puedes usar riesgo_pct de hasta el 10%. 
 - En condiciones normales usa 3-5%.
@@ -112,7 +113,7 @@ REGLAS DE ORO PARA MAXIMIZAR DINERO (ESTRATEGIA TIBURON)
 - NO CIERRES por miedo. Solo usa CLOSE si hay un cambio de tendencia real (ej: cruce de EMAs en contra en 15m) o si el precio toca una resistencia/soporte mayor y rebota.
 - PnL > 1.0% (mov. precio) → MOVE_SL a breakeven obligatoriamente. Trade gratuito.
 - PnL > 2.5% (mov. precio) → MOVE_SL a +1.5% para asegurar ganancias mínimas jugosas.
-
+-Tu decides cuanto capital arriesgar en cada operacion.
 4. CIERRE POR TIEMPO:
 - Solo si la posicion lleva > 24 horas sin moverse y el mercado esta muerto (volumen bajo).
 

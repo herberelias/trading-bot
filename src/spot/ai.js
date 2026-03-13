@@ -31,7 +31,7 @@ async function consultarGeminiSpot(
     const dcaStr = ultimaCompraPrecio
         ? `Último precio de compra de ETH fue a ${ultimaCompraPrecio} USDT.`
         : 'Aún no has comprado ETH (no hay precio promedio).';
-        
+
     const posicionStr = balanceSpot.eth > 0.0001
         ? `Holding: ${balanceSpot.eth.toFixed(6)} ETH (~${(balanceSpot.eth * precioActual).toFixed(2)} USDT). ${dcaStr}`
         : 'Sin ETH en cartera (100% en USDT).';
@@ -75,18 +75,18 @@ REGLAS DE ORO (ESTRATEGIA PROFESIONAL — TIBURON SPOT)
 - PRIORIDAD 1D: Si la tendencia Diaria (1D) es ALCISTA, busca compras en retrocesos de RSI 1H. No compres en picos.
 - REGLA DE DISTANCIA (CRITICA): No compres si el precio no ha bajado al menos un 1.5% respecto a tu ultima compra. Evita quemar USDT en movimientos pequeños.
 - GESTION DE CAPITAL: Si tu USDT es bajo (< 20% del total), SE MUCHO MAS EXIGENTE. Solo compra si el RSI 1D esta en zona de sobreventa (<40).
-- capital_pct: Usa montos pequeños (10-20%) para DCA normal. Guarda el 50-90% solo para caidas fuertes en soportes diarios.
+- capital_pct: Usa montos pequeños (10-20%) para DCA normal. Guarda el 20-40% solo para caidas fuertes en soportes diarios.
 
 2. VENTA (SELL) PARA GANANCIAS REALES:
-- PROTECCION DE PROFIT: Busca vender cuando el precio suba un 5% o 10% respecto a tu precio promedio.
+- PROTECCION DE PROFIT: Busca vender cuando el precio suba un 3% o 5% respecto a tu precio promedio.
 - RSI 1D: Venta masiva obligatoria si RSI 1D > 75 (zona de burbuja).
 - ESTRATEGIA ESCALADA: 
-  * Vende el 50% al +5% de ganancia. 
-  * Vende el otro 50% al +10% o si la tendencia 1D se vuelve bajista.
+  * Vende el 50% al +3% de ganancia. 
+  * Vende el otro 50% al +5% o si la tendencia 1D se vuelve bajista.
 
 3. HOLD Y PACIENCIA:
 - Si ya tienes ETH y el precio esta lateral, no hagas nada. Ten paciencia, deja que el mercado se mueva.
-- Tu mision es NO quedarte en 0 USDT nunca, para siempre tener poder de compra en los suelos reales.
+- Tu mision es ganar dinero en todo momento.
 
 ═══════════════════════════════════════════════════
 RESPUESTA — SOLO JSON SIN TEXTO EXTRA
