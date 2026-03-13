@@ -121,6 +121,8 @@ async function runSpotBot() {
                 // 3. Monedas a evaluar: lo que ya tiene + las recomendaciones de la IA
                 const targets = [...new Set([...heldAssets, ...nombresMejores])];
                 
+                let decisionLogueada = false;
+                
                 for (const symbol of targets) {
                     const candidate = candidatos.find(c => c.symbol === symbol);
                     if (!candidate) continue;
@@ -143,8 +145,11 @@ async function runSpotBot() {
 
                     logger.info(`[SPOT][${user.nombre}] Decision para ${symbol}: ${decision.accion}`);
 
-                    // Guardar decisión para el dashboard (priorizamos la de compra si es de los mejores, o si es venta)
-                    if (nombresMejores.includes(symbol) || decision.accion === 'SELL') {
+                    // Guardar decisión para el dashboard
+                    // REGLA: Logueamos si es compra/venta, O si es el primero de la lista (para actualizar el tiempo en el dashboard)
+                    const esRelevante = nombresMejores.includes(symbol) || decision.accion === 'SELL' || !decisionLogueada;
+                    
+                    if (esRelevante) {
                         await logger.logDecisionSpot({
                             user_id: user.id,
                             symbol: symbol,
@@ -159,10 +164,10 @@ async function runSpotBot() {
                             razon: decision.razon,
                             ejecutado: true
                         });
+                        decisionLogueada = true;
                     }
 
                     // Ejecución
-                    // Ahora permite comprar CUALQUIERA de los mejores candidatos si no hay posición
                     if (decision.accion === 'BUY' && !tienePosicion && nombresMejores.includes(symbol)) {
                         await traderSpot.executeBuy(user, decision, candidate.precioActual);
                     } else if (decision.accion === 'SELL' && tienePosicion) {

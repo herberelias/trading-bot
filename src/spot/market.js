@@ -51,24 +51,35 @@ async function getCandles1dSpot(symbol = null) {
 }
 
 async function getTopSymbolsSpot(limit = 30) {
+    // Lista de respaldo (Failsafe) con monedas sólidas por si falla la API
+    const backupList = ['BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'BNB-USDT', 'XRP-USDT', 'ADA-USDT', 'AVAX-USDT', 'DOT-USDT', 'LINK-USDT', 'MATIC-USDT', 'NEAR-USDT', 'LTC-USDT', 'FET-USDT', 'RENDER-USDT', 'ARB-USDT'];
+
     try {
         const path = '/openApi/spot/v1/market/ticker';
         const response = await axios.get(`${BASE_URL}${path}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' },
+            timeout: 10000
         });
+        
         const allTickers = response.data.data || [];
         
-        // Filtrar solo pares -USDT y que tengan volumen significativo (evitar basura)
+        if (allTickers.length === 0) {
+            logger.warn(`[SPOT] Ticker de BingX vacío. Usando lista de respaldo.`);
+            return backupList.slice(0, limit);
+        }
+
         const filtered = allTickers
             .filter(t => t.symbol.endsWith('-USDT'))
-            .filter(t => parseFloat(t.volume) > 0) // Que tengan volumen
-            .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)); // Ordenar por volumen en USDT
+            .filter(t => parseFloat(t.quoteVolume || 0) > 0)
+            .sort((a, b) => parseFloat(b.quoteVolume || 0) - parseFloat(a.quoteVolume || 0));
 
-        return filtered.slice(0, limit).map(t => t.symbol);
+        const results = filtered.slice(0, limit).map(t => t.symbol);
+        return results.length > 0 ? results : backupList.slice(0, limit);
+
     } catch (error) {
-        const msg = error.response ? `Status ${error.response.status}: ${JSON.stringify(error.response.data)}` : error.message;
-        logger.error(`[SPOT] Error obteniendo top symbols: ${msg}`);
-        return [];
+        const msg = error.response ? `Status ${error.response.status}` : error.message;
+        logger.warn(`[SPOT] Error obteniendo top symbols (${msg}). Usando lista de respaldo.`);
+        return backupList.slice(0, limit);
     }
 }
 
