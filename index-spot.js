@@ -9,19 +9,18 @@ const riskSpot = require('./src/spot/risk');
 const traderSpot = require('./src/spot/trader');
 const context = require('./src/context');
 
-const WATCHLIST = ['ETH-USDT', 'BTC-USDT', 'SOL-USDT', 'NEAR-USDT', 'FET-USDT', 'LINK-USDT'];
-
 async function runSpotBot() {
     try {
         logger.info(`========================================`);
-        logger.info(`[SPOT] Iniciando ciclo de Vigilancia Total (Scanner)`);
+        logger.info(`[SPOT] Iniciando ciclo de Descubrimiento IA (Scanner Dinámico)`);
 
         // 0. Usuarios activos
         const [usuarios] = await db.execute('SELECT * FROM users WHERE activo = 1');
         if (usuarios.length === 0) return;
 
-        // 1. Identificar todas las monedas que hay que vigilar (Watchlist + lo que tienen los usuarios)
-        const scanList = new Set(WATCHLIST);
+        // 1. Descubrimiento Dinámico: Obtener las monedas con más volumen del mercado
+        const topMercado = await marketSpot.getTopSymbolsSpot(35); // Top 35 monedas por volumen
+        const scanList = new Set(topMercado);
         const userBalancesMap = new Map(); // Para no repetir llamadas por usuario si tienen balances iguales (opcional)
 
         for (const user of usuarios) {
@@ -77,10 +76,10 @@ async function runSpotBot() {
             return;
         }
 
-        // 3. IA elije compras SOLO de la Watchlist principal (Filtro anti-memecoins)
-        const candidatosParaCompra = candidatos.filter(c => WATCHLIST.includes(c.symbol));
+        // 3. IA elije compras de la lista dinámica (Descubrimiento)
+        const candidatesForDiscovery = candidatos.filter(c => topMercado.includes(c.symbol));
         const TrumpNews = "Donald Trump maintains a pro-crypto stance, crypto-friendly regulation is expected.";
-        const evaluacion = await aiSpot.evaluarCandidatosSpot(candidatosParaCompra, TrumpNews);
+        const evaluacion = await aiSpot.evaluarCandidatosSpot(candidatesForDiscovery, TrumpNews);
 
         if (!evaluacion || !evaluacion.mejores_candidatos || evaluacion.mejores_candidatos.length === 0) {
             logger.error('[SPOT] IA no pudo elegir candidatos.');
@@ -112,7 +111,7 @@ async function runSpotBot() {
                     .filter(b => parseFloat(b.free) > 0.0001 && b.asset !== 'USDT' && b.asset !== 'USDC')
                     .map(b => `${b.asset}-USDT`);
 
-                // 3. Monedas a evaluar: lo que ya tiene (esté o no en watchlist) + todas las recomendaciones de compra
+                // 3. Monedas a evaluar: lo que ya tiene + las recomendaciones de la IA
                 const targets = [...new Set([...heldAssets, ...nombresMejores])];
                 
                 for (const symbol of targets) {

@@ -50,4 +50,23 @@ async function getCandles1dSpot(symbol = null) {
     return await getKlinesSpot(par, '1d', 100);
 }
 
-module.exports = { getCandles15mSpot, getCandles1hSpot, getCandles4hSpot, getCandles1dSpot };
+async function getTopSymbolsSpot(limit = 30) {
+    try {
+        const path = '/openApi/spot/v1/market/ticker';
+        const response = await axios.get(`${BASE_URL}${path}`);
+        const allTickers = response.data.data || [];
+        
+        // Filtrar solo pares -USDT y que tengan volumen significativo (evitar basura)
+        const filtered = allTickers
+            .filter(t => t.symbol.endsWith('-USDT'))
+            .filter(t => parseFloat(t.volume) > 0) // Que tengan volumen
+            .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)); // Ordenar por volumen en USDT
+
+        return filtered.slice(0, limit).map(t => t.symbol);
+    } catch (error) {
+        logger.error(`[SPOT] Error obteniendo top symbols`, error.message);
+        return [];
+    }
+}
+
+module.exports = { getCandles15mSpot, getCandles1hSpot, getCandles4hSpot, getCandles1dSpot, getTopSymbolsSpot };
