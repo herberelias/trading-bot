@@ -66,7 +66,8 @@ async function getTopSymbolsSpot(limit = 30) {
 
         return filtered.slice(0, limit).map(t => t.symbol);
     } catch (error) {
-        logger.error(`[SPOT] Error obteniendo top symbols`, error.message);
+        const msg = error.response ? `Status ${error.response.status}: ${JSON.stringify(error.response.data)}` : error.message;
+        logger.error(`[SPOT] Error obteniendo top symbols: ${msg}`);
         return [];
     }
 }
