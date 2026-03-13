@@ -32,23 +32,27 @@ async function request(method, path, user, params = {}) {
     }
 }
 
-// Balance USDT y otros activos en cuenta spot
-async function getSpotBalance(user, asset = 'ETH') {
+// Balance completo en cuenta spot
+async function getFullSpotBalance(user) {
     try {
         const res = await request('GET', '/openApi/spot/v1/account/balance', user);
-        const balances = res.data.balances || [];
-        const usdt = balances.find(b => b.asset === 'USDT');
-        const target = balances.find(b => b.asset === asset.toUpperCase());
-        return {
-            usdt: parseFloat(usdt ? usdt.free : 0),
-            asset: parseFloat(target ? target.free : 0),
-            usdtTotal: parseFloat(usdt ? usdt.total : 0),
-            assetTotal: parseFloat(target ? target.total : 0)
-        };
+        return res.data.balances || [];
     } catch (e) {
-        logger.error(`[SPOT] Error al obtener balance para usuario ${user?.nombre || 'default'}`, e.message);
-        return { usdt: 0, asset: 0, usdtTotal: 0, assetTotal: 0 };
+        logger.error(`[SPOT] Error al obtener balance completo para ${user?.nombre}`, e.message);
+        return [];
     }
+}
+
+async function getSpotBalance(user, asset = 'ETH') {
+    const balances = await getFullSpotBalance(user);
+    const usdt = balances.find(b => b.asset === 'USDT');
+    const target = balances.find(b => b.asset === asset.toUpperCase());
+    return {
+        usdt: parseFloat(usdt ? usdt.free : 0),
+        asset: parseFloat(target ? target.free : 0),
+        usdtTotal: parseFloat(usdt ? usdt.total : 0),
+        assetTotal: parseFloat(target ? target.total : 0)
+    };
 }
 
 // Historial de trades spot del dia (Filtrado por usuario)
@@ -227,6 +231,7 @@ async function getHistory(user, symbol = 'ETH-USDT', limit = 20) {
 }
 
 module.exports = {
+    getFullSpotBalance,
     getSpotBalance,
     getSpotPrice,
     getTodayTradesSpot,

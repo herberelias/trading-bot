@@ -183,9 +183,9 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             <div class="kpi-sub">USDT en cuenta Spot</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">🔷 Balance Spot ETH</div>
-            <div class="kpi-value" style="color:#a78bfa">${data.spot.balanceEth}</div>
-            <div class="kpi-sub">ETH en posición</div>
+            <div class="kpi-label">🔷 Valor Portafolio Spot</div>
+            <div class="kpi-value" style="color:#a78bfa">$${data.spot.totalValueUsdt}</div>
+            <div class="kpi-sub">${data.spot.mainAsset} en posición principal</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">⚡ Operaciones Ejecutadas</div>
@@ -374,12 +374,32 @@ async function getDashboardData(period, userId) {
     const traderFuturos = require('./src/trader');
     const traderSpot = require('./src/spot/trader');
 
-    const [balFut, balSpot, ethPrecioReal] = await Promise.all([
+    const [balFut, allBalances] = await Promise.all([
         traderFuturos.getBalance(user).catch(() => 0),
-        traderSpot.getSpotBalance(user).catch(() => ({ usdt: 0, eth: 0 })),
-        traderSpot.getSpotPrice('ETH-USDT').catch(() => null)
+        traderSpot.getFullSpotBalance(user).catch(() => [])
     ]);
-    const ethPrecioEst = ethPrecioReal || 0;
+
+    const usdtBal = allBalances.find(b => b.asset === 'USDT');
+    const balanceUsdt = parseFloat(usdtBal ? usdtBal.free : 0);
+    
+    // Calcular valor total de activos en watchlist (o todos los que tengan valor > 0.001)
+    let totalValueAssets = 0;
+    let mainAssetStr = "Diversificado";
+    let maxVal = 0;
+
+    for (const b of allBalances) {
+        if (b.asset === 'USDT') continue;
+        const free = parseFloat(b.free);
+        if (free > 0) {
+            const price = await traderSpot.getSpotPrice(`${b.asset}-USDT`).catch(() => 0);
+            const val = free * (price || 0);
+            totalValueAssets += val;
+            if (val > maxVal) {
+                maxVal = val;
+                mainAssetStr = `${free.toFixed(4)} ${b.asset}`;
+            }
+        }
+    }
 
     let tf = `user_id = ${userId}`;
     if (period === 'today') tf += ` AND DATE(timestamp_apertura) = CURDATE()`;
@@ -471,8 +491,8 @@ async function getDashboardData(period, userId) {
     const spRow = spotPnlRows[0] || {};
     const totalComprado  = parseFloat(spRow.total_comprado  || 0);
     const totalVendido   = parseFloat(spRow.total_vendido   || 0);
-    const ethActual      = parseFloat(balSpot.eth || 0);
-    const valorEthActual = ethActual * ethPrecioEst;
+    const ethActual      = 0; // Legacy ref
+    const valorEthActual = totalValueAssets;
     const pnlRealizado   = totalVendido - totalComprado;
     const pnlTotal       = pnlRealizado + valorEthActual;
 
@@ -484,7 +504,7 @@ async function getDashboardData(period, userId) {
         pnlRealizado:   pnlRealizado.toFixed(2),
         valorEthActual: valorEthActual.toFixed(2),
         pnlTotal:       pnlTotal.toFixed(2),
-        ethActual:      ethActual.toFixed(6)
+        ethActual:      mainAssetStr
     };
 
     const lastPurchasePrice = await traderSpot.getUltimaCompra(user.id);
@@ -513,8 +533,9 @@ async function getDashboardData(period, userId) {
             executedTrades: executedFuturos
         },
         spot: {
-            balanceUsdt: parseFloat(balSpot.usdt).toFixed(2),
-            balanceEth:  parseFloat(balSpot.eth).toFixed(6),
+            balanceUsdt: balanceUsdt.toFixed(2),
+            totalValueUsdt: totalValueAssets.toFixed(2),
+            mainAsset: mainAssetStr,
             totalTrades: user.modo_real ? sTradesRaw.length : executedSpot
         },
         spotPnl,

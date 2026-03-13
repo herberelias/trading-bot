@@ -79,46 +79,66 @@ async function runSpotBot() {
             try {
                 logger.info(`[SPOT] ---- Procesando: ${user.nombre} ----`);
 
-                // Ver que moneda tiene este usuario (buscamos en balances reales)
-                const assetHolding = mejor.symbol.split('-')[0];
-                const balanceActivo = await traderSpot.getSpotBalance(user, assetHolding);
-                const tienePosicion = balanceActivo.asset > 0.0001;
+                // 1. Obtener todos los balances del usuario
+                const allBalances = await traderSpot.getFullSpotBalance(user);
+                const usdtBalance = parseFloat(allBalances.find(b => b.asset === 'USDT')?.free || 0);
 
-                // Decision individual para el mejor candidato
-                const decision = await aiSpot.consultarGeminiSpot(
-                    mejor.indicators15m, mejor.indicators1h, null, mejor.indicators1d,
-                    mejor.precioActual, 
-                    { usdt: balanceActivo.usdt, eth: balanceActivo.asset }, // Adaptamos para que el prompt funcione igual
-                    [], // historial simplificado por ahora
-                    fearGreed, null, sesionMercado, 0, null, TrumpNews
-                );
-
-                if (!decision) continue;
-                decision.symbol = mejor.symbol; // Inyectamos el simbolo
-
-                logger.info(`[SPOT][${user.nombre}] Decision para ${mejor.symbol}: ${decision.accion}`);
-
-                // 4. Guardar decision para el dashboard
-                await logger.logDecisionSpot({
-                    user_id: user.id,
-                    symbol: mejor.symbol,
-                    rsi: mejor.indicators15m.rsi,
-                    ema20: mejor.indicators15m.ema20,
-                    ema50: mejor.indicators15m.ema50,
-                    macd: mejor.indicators15m.macd,
-                    volumenPct: mejor.indicators15m.volumeVsAvg,
-                    precioActual: mejor.precioActual,
-                    accion: decision.accion,
-                    confianza: decision.confianza,
-                    razon: decision.razon,
-                    ejecutado: true
+                // 2. Identificar qué activos de la Watchlist tiene el usuario
+                const heldInWatchlist = WATCHLIST.filter(symbol => {
+                    const asset = symbol.split('-')[0];
+                    const bal = allBalances.find(b => b.asset === asset);
+                    return bal && parseFloat(bal.free) > 0.0001;
                 });
 
-                // 5. Ejecucion
-                if (decision.accion === 'BUY' && !tienePosicion) {
-                    await traderSpot.executeBuy(user, decision, mejor.precioActual);
-                } else if (decision.accion === 'SELL' && tienePosicion) {
-                    await traderSpot.executeSell(user, decision, mejor.precioActual);
+                // 3. Monedas a evaluar: lo que ya tiene + la mejor oportunidad nueva
+                const targets = [...new Set([...heldInWatchlist, mejor.symbol])];
+                
+                for (const symbol of targets) {
+                    const candidate = candidatos.find(c => c.symbol === symbol);
+                    if (!candidate) continue;
+
+                    const asset = symbol.split('-')[0];
+                    const balanceAsset = parseFloat(allBalances.find(b => b.asset === asset)?.free || 0);
+                    const tienePosicion = balanceAsset > 0.0001;
+
+                    // Decisión individual para esta moneda
+                    const decision = await aiSpot.consultarGeminiSpot(
+                        candidate.indicators15m, candidate.indicators1h, null, candidate.indicators1d,
+                        candidate.precioActual,
+                        { usdt: usdtBalance, eth: balanceAsset },
+                        [], // Historial simplificado
+                        fearGreed, null, sesionMercado, 0, null, TrumpNews
+                    );
+
+                    if (!decision) continue;
+                    decision.symbol = symbol;
+
+                    logger.info(`[SPOT][${user.nombre}] Decision para ${symbol}: ${decision.accion}`);
+
+                    // Guardar decisión para el dashboard (solo la más relevante)
+                    if (symbol === mejor.symbol || decision.accion === 'SELL') {
+                        await logger.logDecisionSpot({
+                            user_id: user.id,
+                            symbol: symbol,
+                            rsi: candidate.indicators15m.rsi,
+                            ema20: candidate.indicators15m.ema20,
+                            ema50: candidate.indicators15m.ema50,
+                            macd: candidate.indicators15m.macd,
+                            volumenPct: candidate.indicators15m.volumeVsAvg,
+                            precioActual: candidate.precioActual,
+                            accion: decision.accion,
+                            confianza: decision.confianza,
+                            razon: decision.razon,
+                            ejecutado: true
+                        });
+                    }
+
+                    // Ejecución
+                    if (decision.accion === 'BUY' && !tienePosicion && symbol === mejor.symbol) {
+                        await traderSpot.executeBuy(user, decision, candidate.precioActual);
+                    } else if (decision.accion === 'SELL' && tienePosicion) {
+                        await traderSpot.executeSell(user, decision, candidate.precioActual);
+                    }
                 }
 
             } catch (uErr) {
