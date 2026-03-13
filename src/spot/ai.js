@@ -133,4 +133,56 @@ HOLD: { "accion": "HOLD", "confianza": 0-1, "capital_pct": null,  "sell_pct": nu
     return null;
 }
 
-module.exports = { consultarGeminiSpot };
+async function evaluarCandidatosSpot(candidatos, noticiasTrump) {
+    const tableStr = candidatos.map(c => {
+        return `| ${c.symbol} | ${c.precioActual} | ${c.indicators1h.rsi} | ${c.indicators1h.ema20 > c.indicators1h.ema50 ? 'ALCISTA' : 'BAJISTA'} | ${c.indicators1d ? c.indicators1d.rsi : 'N/A'} |`;
+    }).join('\n');
+
+    const prompt = `Eres un INVERSIONISTA EXPERTO en Trading SPOT de Criptomonedas.
+Tu objetivo es elegir el MEJOR candidato para invertir USDT en este momento.
+
+═══════════════════════════════════════════════════
+NOTICIAS RELEVANTES
+═══════════════════════════════════════════════════
+${noticiasTrump || 'No hay noticias recientes.'}
+
+═══════════════════════════════════════════════════
+COMPARATIVA DE MERCADO (Escaneo Actual)
+═══════════════════════════════════════════════════
+| Moneda | Precio | RSI 1H | Tendencia 1H | RSI 1D |
+| :--- | :--- | :--- | :--- | :--- |
+${tableStr}
+
+═══════════════════════════════════════════════════
+REGLAS DE SELECCION:
+═══════════════════════════════════════════════════
+1. PRIORIDAD: Busca monedas en retroceso alcista o sobreventa (RSI < 40) si la tendencia general es buena.
+2. EVITAR: No compres monedas con RSI 1H > 70 o que esten en maximos locales.
+3. DIVERSIFICACION: Si ya estamos en una moneda, recomienda mantener o cambiar solo si hay una oportunidad mucho mejor.
+
+═══════════════════════════════════════════════════
+RESPUESTA — SOLO JSON SIN TEXTO EXTRA
+═══════════════════════════════════════════════════
+{
+  "mejor_candidato": "SYMBOL",
+  "confianza": 0-1,
+  "razon": "Explicacion breve de por que es la mejor opcion",
+  "accion_recomendada": "BUY / WAIT"
+}`;
+
+    try {
+        const response = await axios.post(URL, {
+            contents: [{ parts: [{ text: prompt }] }]
+        }, { headers: { 'Content-Type': 'application/json' } });
+
+        let text = response.data.candidates[0].content.parts[0].text.trim();
+        text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+
+        return JSON.parse(text);
+    } catch (error) {
+        logger.error('[SPOT] Error en evaluarCandidatosSpot', error.message);
+        return null;
+    }
+}
+
+module.exports = { consultarGeminiSpot, evaluarCandidatosSpot };

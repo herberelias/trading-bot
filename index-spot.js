@@ -9,150 +9,130 @@ const riskSpot = require('./src/spot/risk');
 const traderSpot = require('./src/spot/trader');
 const context = require('./src/context');
 
+const WATCHLIST = ['ETH-USDT', 'BTC-USDT', 'SOL-USDT', 'NEAR-USDT', 'FET-USDT', 'LINK-USDT'];
+
 async function runSpotBot() {
     try {
-        const par = process.env.PAR_SPOT;
         logger.info(`========================================`);
-        logger.info(`[SPOT] Iniciando ciclo multiusuario: ${par}`);
+        logger.info(`[SPOT] Iniciando ciclo multi-moneda (Scanner)`);
 
-        // 0. Obtener usuarios activos
+        // 0. Usuarios activos
         const [usuarios] = await db.execute('SELECT * FROM users WHERE activo = 1');
-        if (usuarios.length === 0) {
-            logger.warn('[SPOT] No hay usuarios activos. Saltando ciclo.');
-            return;
-        }
+        if (usuarios.length === 0) return;
 
-        // 1. Velas en paralelo (una vez para todos — el mercado es igual para todos)
-        const [candles15m, candles1h, candles4h, candles1d] = await Promise.all([
-            marketSpot.getCandles15mSpot(par),
-            marketSpot.getCandles1hSpot(par),
-            marketSpot.getCandles4hSpot(par),
-            marketSpot.getCandles1dSpot(par)
-        ]);
-
-        if (!candles15m || candles15m.length < 50) {
-            logger.error('[SPOT] Velas 15m insuficientes. Abortando.');
-            return;
-        }
-
-        // 2. Indicadores técnicos (iguales para todos — mismo activo ETH)
-        const indicators15m = indicators.calcularIndicadores(candles15m);
-        const indicators1h = (candles1h && candles1h.length >= 50)
-            ? indicators.calcularIndicadores(candles1h) : indicators15m;
-        const indicators4h = (candles4h && candles4h.length >= 50)
-            ? indicators.calcularIndicadores(candles4h) : null;
-        const indicators1d = (candles1d && candles1d.length >= 50)
-            ? indicators.calcularIndicadores(candles1d) : null;
-
-        const precioActual = indicators15m.currentPrice;
-
-        // 3. Contexto global (solo una vez)
-        const TrumpNews = "Donald Trump maintains a strongly pro-crypto stance, establishing a Bitcoin reserve, signing the GENIUS Act for stablecoins, and opposing CBDCs. His administration promotes clear regulatory frameworks (Crypto Clarity Act) and a friendly environment for digital assets.";
+        // 1. Escanear Watchlist
+        logger.info(`[SPOT] Escaneando: ${WATCHLIST.join(', ')}`);
+        const candidatos = [];
         
-        const [fearGreed, soportesResistencias, sesionMercado] = await Promise.all([
+        for (const symbol of WATCHLIST) {
+            try {
+                const [c15m, c1h, c4h, c1d] = await Promise.all([
+                    marketSpot.getCandles15mSpot(symbol),
+                    marketSpot.getCandles1hSpot(symbol),
+                    marketSpot.getCandles4hSpot(symbol),
+                    marketSpot.getCandles1dSpot(symbol)
+                ]);
+
+                if (!c15m || c15m.length < 50) continue;
+
+                const ind15m = indicators.calcularIndicadores(c15m);
+                const ind1h = (c1h && c1h.length >= 50) ? indicators.calcularIndicadores(c1h) : ind15m;
+                const ind1d = (c1d && c1d.length >= 50) ? indicators.calcularIndicadores(c1d) : null;
+
+                candidatos.push({
+                    symbol,
+                    precioActual: ind15m.currentPrice,
+                    indicators15m: ind15m,
+                    indicators1h: ind1h,
+                    indicators1d: ind1d
+                });
+            } catch (err) {
+                logger.error(`[SPOT] Error escaneando ${symbol}:`, err.message);
+            }
+        }
+
+        if (candidatos.length === 0) {
+            logger.error('[SPOT] No se pudieron obtener datos de ningun candidato.');
+            return;
+        }
+
+        // 2. IA elije la mejor oportunidad
+        const TrumpNews = "Donald Trump maintains a pro-crypto stance, favorable regulation and Bitcoin reserves are key topics.";
+        const evaluacion = await aiSpot.evaluarCandidatosSpot(candidatos, TrumpNews);
+
+        if (!evaluacion || !evaluacion.mejor_candidato) {
+            logger.error('[SPOT] IA no pudo elegir un candidato.');
+            return;
+        }
+
+        const mejor = candidatos.find(c => c.symbol === evaluacion.mejor_candidato);
+        logger.info(`[SPOT] IA SELECCIONÓ: ${evaluacion.mejor_candidato} | Razon: ${evaluacion.razon}`);
+
+        // 3. Analisis global (Fear & Greed)
+        const [fearGreed, sesionMercado] = await Promise.all([
             context.getFearAndGreed(),
-            candles1h && candles1h.length > 0 
-                ? Promise.resolve(context.calcularSoportesResistencias(candles1h, 50)) 
-                : Promise.resolve(null),
             Promise.resolve(context.getSesionMercado())
         ]);
-
-        logger.info(`[SPOT] Precio ETH: ${precioActual} | Fear&Greed: ${fearGreed?.value || 'N/A'} | Sesion: ${sesionMercado?.sesion}`);
 
         // --- BUCLE POR USUARIO ---
         for (const user of usuarios) {
             try {
-                logger.info(`[SPOT] ---- Procesando: ${user.nombre} (ID: ${user.id}) ----`);
+                logger.info(`[SPOT] ---- Procesando: ${user.nombre} ----`);
 
-                // Contexto específico del usuario (su balance, su historial)
-                const [balanceSpot, historialHoy, racha, ultimaCompra] = await Promise.all([
-                    traderSpot.getSpotBalance(user),
-                    traderSpot.getTodayTradesSpot(user.id),
-                    context.getRachaActual(user),
-                    traderSpot.getUltimaCompra(user.id)
-                ]);
+                // Ver que moneda tiene este usuario (buscamos en balances reales)
+                const assetHolding = mejor.symbol.split('-')[0];
+                const balanceActivo = await traderSpot.getSpotBalance(user, assetHolding);
+                const tienePosicion = balanceActivo.asset > 0.0001;
 
-                const tieneEth = balanceSpot.eth > 0.0001;
-
-                logger.info(`[SPOT][${user.nombre}] USDT: ${balanceSpot.usdt?.toFixed(2)} | ETH: ${balanceSpot.eth?.toFixed(6)} | Tiene ETH: ${tieneEth}`);
-
-                // 4. IA independiente para este usuario (con su capital real)
+                // Decision individual para el mejor candidato
                 const decision = await aiSpot.consultarGeminiSpot(
-                    indicators15m, indicators1h, indicators4h, indicators1d,
-                    precioActual, balanceSpot, historialHoy,
-                    fearGreed, soportesResistencias, sesionMercado, racha, 
-                    ultimaCompra?.precio || null,
-                    TrumpNews
+                    mejor.indicators15m, mejor.indicators1h, null, mejor.indicators1d,
+                    mejor.precioActual, 
+                    { usdt: balanceActivo.usdt, eth: balanceActivo.asset }, // Adaptamos para que el prompt funcione igual
+                    [], // historial simplificado por ahora
+                    fearGreed, null, sesionMercado, 0, null, TrumpNews
                 );
 
-                if (!decision) {
-                    logger.error(`[SPOT][${user.nombre}] IA no devolvio decision. Saltando.`);
-                    continue;
-                }
+                if (!decision) continue;
+                decision.symbol = mejor.symbol; // Inyectamos el simbolo
 
-                logger.info(`[SPOT][${user.nombre}] IA: ${decision.accion} | Confianza: ${decision.confianza}`);
+                logger.info(`[SPOT][${user.nombre}] Decision para ${mejor.symbol}: ${decision.accion}`);
 
-                // 5. Validar riesgo y Reglas de Tiburón (Distancia y Tiempo)
-                let riskResult = await riskSpot.checkRiskPermissionsSpot(decision, tieneEth, user);
-
-                if (riskResult.canTrade && decision.accion === 'BUY' && ultimaCompra) {
-                    // REGLA 1: Distancia de precio (Min 1.5% caída)
-                    const diffPrecio = ((ultimaCompra.precio - precioActual) / ultimaCompra.precio) * 100;
-                    if (diffPrecio < 1.5) {
-                        riskResult = { canTrade: false, reason: `Precio muy cercano a ultima compra (${diffPrecio.toFixed(2)}% < 1.5%)` };
-                    }
-
-                    // REGLA 2: Tiempo (Min 4 horas entre compras)
-                    const horasDesdeUltima = (Date.now() - ultimaCompra.fecha.getTime()) / (1000 * 60 * 60);
-                    if (horasDesdeUltima < 4) {
-                        riskResult = { canTrade: false, reason: `Solo han pasado ${horasDesdeUltima.toFixed(1)}h de la ultima compra (Min 4h)` };
-                    }
-                }
-
-                // 6. Guardar decision CON user_id
+                // 4. Guardar decision para el dashboard
                 await logger.logDecisionSpot({
                     user_id: user.id,
-                    rsi: indicators15m.rsi,
-                    ema20: indicators15m.ema20,
-                    ema50: indicators15m.ema50,
-                    macd: indicators15m.macd,
-                    volumenPct: indicators15m.volumeVsAvg,
-                    precioActual,
+                    symbol: mejor.symbol,
+                    rsi: mejor.indicators15m.rsi,
+                    ema20: mejor.indicators15m.ema20,
+                    ema50: mejor.indicators15m.ema50,
+                    macd: mejor.indicators15m.macd,
+                    volumenPct: mejor.indicators15m.volumeVsAvg,
+                    precioActual: mejor.precioActual,
                     accion: decision.accion,
                     confianza: decision.confianza,
                     razon: decision.razon,
-                    precio_objetivo: decision.precio_objetivo,
-                    stop_loss_ref: decision.stop_loss_ref,
-                    ejecutado: riskResult.canTrade,
-                    motivo_no_ejecutado: riskResult.reason
+                    ejecutado: true
                 });
 
-                // 7. Ejecutar en la cuenta del usuario
-                if (riskResult.canTrade) {
-                    if (decision.accion === 'BUY') {
-                        logger.info(`[SPOT][${user.nombre}] Ejecutando BUY ${decision.capital_pct}% USDT...`);
-                        await traderSpot.executeBuy(user, decision, precioActual);
-                    } else if (decision.accion === 'SELL') {
-                        logger.info(`[SPOT][${user.nombre}] Ejecutando SELL ${decision.sell_pct}% ETH...`);
-                        await traderSpot.executeSell(user, decision, precioActual);
-                    }
+                // 5. Ejecucion
+                if (decision.accion === 'BUY' && !tienePosicion) {
+                    await traderSpot.executeBuy(user, decision, mejor.precioActual);
+                } else if (decision.accion === 'SELL' && tienePosicion) {
+                    await traderSpot.executeSell(user, decision, mejor.precioActual);
                 }
 
             } catch (uErr) {
-                logger.error(`[SPOT] Error procesando usuario ${user.nombre}:`, uErr.message);
+                logger.error(`[SPOT] Error usuario ${user.nombre}:`, uErr.message);
             }
         }
 
-        logger.info(`[SPOT] Ciclo multiusuario completado.`);
+        logger.info(`[SPOT] Ciclo completado.`);
         logger.info(`========================================`);
 
     } catch (error) {
-        logger.error('[SPOT] Error critico en ciclo', error);
+        logger.error('[SPOT] Error critico', error);
     }
 }
 
-logger.info('Spot Bot v2.0 — ETH-USDT — Multiusuario IA Independiente');
-logger.info(`Par: ${process.env.PAR_SPOT} | Modo: ${process.env.MODO_REAL_SPOT === 'true' ? 'REAL' : 'SIMULADO'}`);
-
-cron.schedule('*/15 * * * *', () => { runSpotBot(); });
+cron.schedule('*/30 * * * *', () => { runSpotBot(); });
 runSpotBot();

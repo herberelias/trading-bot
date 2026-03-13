@@ -226,7 +226,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
         <div class="card" style="border:1px solid rgba(16,185,129,0.35);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:10px;">
                 <div>
-                    <div style="font-size:0.65rem; font-weight:900; text-transform:uppercase; letter-spacing:1.5px; color:var(--success); margin-bottom:6px;">IA SPOT (ETH)</div>
+                    <div style="font-size:0.65rem; font-weight:900; text-transform:uppercase; letter-spacing:1.5px; color:var(--success); margin-bottom:6px;">IA SPOT (${data.aiSpot?.par || 'SCANNER'})</div>
                     ${data.aiSpot ? (() => {
                         let cls = 'b-hold';
                         if (data.aiSpot.accion === 'BUY') cls = 'b-long';
@@ -300,7 +300,7 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                 <!-- TABLA SPOT -->
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title" style="color:var(--success);">ETH Spot</div>
+                        <div class="card-title" style="color:var(--success);">Scanner Spot</div>
                         <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">${data.spot.totalTrades} ops</span>
                     </div>
 
@@ -335,17 +335,18 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
                     <div class="table-wrap">
                         <table>
                             <thead>
-                                <tr><th>Operación</th><th>Precio</th><th>Monto USDT</th><th>Hora</th></tr>
+                                <tr><th>Par</th><th>Operación</th><th>Precio</th><th>Monto USDT</th><th>Hora</th></tr>
                             </thead>
                             <tbody>
                                 ${data.tradesSpot.length > 0 ? data.tradesSpot.map(t => `
                                     <tr>
+                                        <td style="font-weight:800; font-size:0.75rem; color:#a78bfa;">${t.symbol}</td>
                                         <td><span class="badge ${t.accion === 'BUY' ? 'b-long' : 'b-short'}">${t.accion}</span></td>
                                         <td><b>$${t.precio}</b></td>
                                         <td>${t.detalle}</td>
                                         <td style="color:var(--text-dim); font-size:0.7rem;">${t.hora}</td>
                                     </tr>
-                                `).join('') : '<tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-dim);">Sin operaciones</td></tr>'}
+                                `).join('') : '<tr><td colspan="5" style="text-align:center; padding:2rem; color:var(--text-dim);">Sin operaciones</td></tr>'}
                             </tbody>
                         </table>
                     </div>
@@ -418,8 +419,7 @@ async function getDashboardData(period, userId) {
     }
 
     // Siempre traemos los trades de la DB para Spot, ya que es el registro fiel de la IA.
-    // Para la tabla de spot, mostramos el historial completo (o últimos 50) como pidió el usuario.
-    const [sTradesRows] = await db.execute(`SELECT accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE user_id = ? ORDER BY hora DESC LIMIT 50`, [userId]);
+    const [sTradesRows] = await db.execute(`SELECT symbol, accion, precio_entrada as precio, capital_usdt as monto_usdt, timestamp_apertura as hora FROM spot_trades WHERE user_id = ? ORDER BY hora DESC LIMIT 50`, [userId]);
     let sTradesRaw = sTradesRows;
 
     const fmt = (d) => new Date(d).toLocaleString('es-SV', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
@@ -437,6 +437,7 @@ async function getDashboardData(period, userId) {
         fechaCierre: t.timestamp_cierre ? fmt(t.timestamp_cierre) : '--'
     }));
     const tradesSpot = sTradesRaw.map(t => ({
+        symbol: t.symbol || 'ETH-USDT',
         accion: t.accion,
         precio: parseFloat(t.precio).toFixed(2),
         detalle: fmtUSDT(t.monto_usdt),

@@ -32,22 +32,22 @@ async function request(method, path, user, params = {}) {
     }
 }
 
-// Balance USDT y ETH en cuenta spot
-async function getSpotBalance(user) {
+// Balance USDT y otros activos en cuenta spot
+async function getSpotBalance(user, asset = 'ETH') {
     try {
         const res = await request('GET', '/openApi/spot/v1/account/balance', user);
         const balances = res.data.balances || [];
         const usdt = balances.find(b => b.asset === 'USDT');
-        const eth = balances.find(b => b.asset === 'ETH');
+        const target = balances.find(b => b.asset === asset.toUpperCase());
         return {
             usdt: parseFloat(usdt ? usdt.free : 0),
-            eth: parseFloat(eth ? eth.free : 0),
+            asset: parseFloat(target ? target.free : 0),
             usdtTotal: parseFloat(usdt ? usdt.total : 0),
-            ethTotal: parseFloat(eth ? eth.total : 0)
+            assetTotal: parseFloat(target ? target.total : 0)
         };
     } catch (e) {
         logger.error(`[SPOT] Error al obtener balance para usuario ${user?.nombre || 'default'}`, e.message);
-        return { usdt: 0, eth: 0, usdtTotal: 0, ethTotal: 0 };
+        return { usdt: 0, asset: 0, usdtTotal: 0, assetTotal: 0 };
     }
 }
 
@@ -102,10 +102,10 @@ async function placeSpotOrder(user, orderParams) {
     }
 }
 
-// Comprar ETH con USDT
+// Comprar Cripto con USDT
 async function executeBuy(user, decision, precioActual) {
-    const isReal = user.modo_real === 1; // Usamos el modo_real del usuario
-    const symbol = process.env.PAR_SPOT || 'ETH-USDT';
+    const isReal = user.modo_real === 1;
+    const symbol = decision.symbol || process.env.PAR_SPOT || 'ETH-USDT';
     
     try {
         let usdtBalance = 0;
@@ -119,7 +119,7 @@ async function executeBuy(user, decision, precioActual) {
         const pct = (decision.capital_pct || 25) / 100;
         const montoCompra = usdtBalance * pct;
 
-        logger.info(`[SPOT] Preparando orden de ${montoCompra.toFixed(2)} USDT para ${user.nombre} (${(pct*100).toFixed(0)}% del balance)`);
+        logger.info(`[SPOT] Preparando orden de ${montoCompra.toFixed(2)} USDT para ${user.nombre} (${(pct*100).toFixed(0)}% del balance) en ${symbol}`);
 
         if (isReal) {
             const orderRes = await placeSpotOrder(user, {
@@ -135,40 +135,41 @@ async function executeBuy(user, decision, precioActual) {
             }
         }
 
-        // Registrar en DB SOLO SI fUE EXITOSO o es simulado
+        // Registrar en DB
         await db.execute(`
-            INSERT INTO spot_trades (user_id, accion, precio_entrada, capital_usdt, cantidad_eth, cargo_ia, timestamp_apertura)
-            VALUES (?, 'BUY', ?, ?, ?, ?, NOW())
-        `, [user.id, precioActual, montoCompra, montoCompra / precioActual, decision.confianza]);
+            INSERT INTO spot_trades (user_id, symbol, accion, precio_entrada, capital_usdt, cantidad, cargo_ia, timestamp_apertura)
+            VALUES (?, ?, 'BUY', ?, ?, ?, ?, NOW())
+        `, [user.id, symbol, precioActual, montoCompra, montoCompra / precioActual, decision.confianza]);
 
-        logger.info(`[SPOT] Compra exitosa para ${user.nombre}: ${montoCompra.toFixed(2)} USDT`);
+        logger.info(`[SPOT] Compra exitosa para ${user.nombre}: ${montoCompra.toFixed(2)} USDT en ${symbol}`);
 
     } catch (e) {
         logger.error(`[SPOT] Error crítico en executeBuy para ${user.nombre}:`, e.message);
     }
 }
 
-// Vender ETH
+// Vender Cripto
 async function executeSell(user, decision, precioActual) {
     const isReal = user.modo_real === 1;
-    const symbol = process.env.PAR_SPOT || 'ETH-USDT';
+    const symbol = decision.symbol || process.env.PAR_SPOT || 'ETH-USDT';
+    const asset = symbol.split('-')[0];
 
     try {
-        let ethBalance = 0;
+        let assetBalance = 0;
         if (isReal) {
-            const bal = await getSpotBalance(user);
-            ethBalance = bal.eth;
+            const bal = await getSpotBalance(user, asset);
+            assetBalance = bal.asset;
         } else {
-            // Buscar última compra simulada para saber cuánto vender
-            const [lastTrade] = await db.execute('SELECT cantidad_eth FROM spot_trades WHERE user_id = ? AND accion = "BUY" ORDER BY id DESC LIMIT 1', [user.id]);
-            ethBalance = lastTrade[0]?.cantidad_eth || 0;
+            // Buscar última compra simulada de este simbolo
+            const [lastTrade] = await db.execute('SELECT cantidad FROM spot_trades WHERE user_id = ? AND symbol = ? AND accion = "BUY" ORDER BY id DESC LIMIT 1', [user.id, symbol]);
+            assetBalance = lastTrade[0]?.cantidad || 0;
         }
 
         const sellPct = (decision.sell_pct || 100) / 100;
-        const qtyToSell = ethBalance * sellPct;
+        const qtyToSell = assetBalance * sellPct;
 
-        if (qtyToSell < 0.001) {
-            logger.warn(`[SPOT] Cantidad a vender muy pequeña (${qtyToSell.toFixed(6)}) para ${user.nombre}`);
+        if (qtyToSell <= 0) {
+            logger.warn(`[SPOT] No hay ${asset} para vender para ${user.nombre}`);
             return;
         }
 
@@ -182,11 +183,11 @@ async function executeSell(user, decision, precioActual) {
         }
 
         await db.execute(`
-            INSERT INTO spot_trades (user_id, accion, precio_entrada, capital_usdt, cantidad_eth, cargo_ia, timestamp_apertura)
-            VALUES (?, 'SELL', ?, ?, ?, ?, NOW())
-        `, [user.id, precioActual, qtyToSell * precioActual, qtyToSell, decision.confianza]);
+            INSERT INTO spot_trades (user_id, symbol, accion, precio_entrada, capital_usdt, cantidad, cargo_ia, timestamp_apertura)
+            VALUES (?, ?, 'SELL', ?, ?, ?, ?, NOW())
+        `, [user.id, symbol, precioActual, qtyToSell * precioActual, qtyToSell, decision.confianza]);
 
-        logger.info(`[SPOT] Venta ejecutada para ${user.nombre}: ${qtyToSell.toFixed(6)} ETH (${(sellPct * 100).toFixed(0)}%) en ${precioActual}`);
+        logger.info(`[SPOT] Venta ejecutada para ${user.nombre}: ${qtyToSell.toFixed(6)} ${asset} en ${precioActual}`);
 
     } catch (e) {
         logger.error(`[SPOT] Error en executeSell para ${user.nombre}:`, e.message);

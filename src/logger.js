@@ -92,7 +92,7 @@ const logger = {
             `;
             const values = [
                 decision.user_id || 1,
-                process.env.PAR_SPOT,
+                decision.symbol || process.env.PAR_SPOT || 'ETH-USDT',
                 decision.precioActual,
                 decision.rsi,
                 decision.ema20,
@@ -109,7 +109,7 @@ const logger = {
                 process.env.MODO_REAL_SPOT === 'true' ? 1 : 0
             ];
             await db.execute(query, values);
-            logger.info(`[SPOT user:${decision.user_id || 1}] Decision guardada en BD.`);
+            logger.info(`[SPOT user:${decision.user_id || 1}] Decision guardada en BD para ${decision.symbol || 'ETH-USDT'}.`);
         } catch (error) {
             logger.error('[SPOT] No se pudo guardar decision en BD', error);
         }
