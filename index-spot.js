@@ -19,9 +19,16 @@ async function runSpotBot() {
         if (usuarios.length === 0) return;
 
         // 1. Descubrimiento Dinámico: Obtener las monedas con más volumen del mercado
-        const topMercado = await marketSpot.getTopSymbolsSpot(35); // Top 35 monedas por volumen
+        const topMercado = await marketSpot.getTopSymbolsSpot(35) || [];
+
+        if (!topMercado || topMercado.length === 0) {
+            logger.warn('[SPOT] No se pudo obtener el Top de mercado. Usando solo portfolio.');
+        } else {
+            logger.info(`[SPOT] Top mercado obtenido: ${topMercado.length} monedas.`);
+        }
+
         const scanList = new Set(topMercado);
-        const userBalancesMap = new Map(); // Para no repetir llamadas por usuario si tienen balances iguales (opcional)
+        const userBalancesMap = new Map();
 
         for (const user of usuarios) {
             try {
@@ -40,7 +47,7 @@ async function runSpotBot() {
         }
 
         const finalScanList = Array.from(scanList);
-        logger.info(`[SPOT] Escaneando portfolio completo: ${finalScanList.join(', ')}`);
+        logger.info(`[SPOT] Escaneando portfolio completo (${finalScanList.length}): ${finalScanList.join(', ')}`);
 
         // 2. Escanear Mercado
         const candidatos = [];
@@ -82,8 +89,9 @@ async function runSpotBot() {
         const evaluacion = await aiSpot.evaluarCandidatosSpot(candidatesForDiscovery, TrumpNews);
 
         if (!evaluacion || !evaluacion.mejores_candidatos || evaluacion.mejores_candidatos.length === 0) {
-            logger.error('[SPOT] IA no pudo elegir candidatos.');
-            return;
+            logger.info('[SPOT] IA analizó el mercado y decidió no comprar nada en este ciclo (HOLD general).');
+            // Aun asi procesamos el bucle por usuario para ver si hay ventas pendientes
+            evaluacion.mejores_candidatos = []; 
         }
 
         const nombresMejores = evaluacion.mejores_candidatos.map(c => c.symbol);
