@@ -60,13 +60,15 @@ async function runSpotBot() {
         const TrumpNews = "Donald Trump maintains a pro-crypto stance, favorable regulation and Bitcoin reserves are key topics.";
         const evaluacion = await aiSpot.evaluarCandidatosSpot(candidatos, TrumpNews);
 
-        if (!evaluacion || !evaluacion.mejor_candidato) {
-            logger.error('[SPOT] IA no pudo elegir un candidato.');
+        if (!evaluacion || !evaluacion.mejores_candidatos || evaluacion.mejores_candidatos.length === 0) {
+            logger.error('[SPOT] IA no pudo elegir candidatos.');
             return;
         }
 
-        const mejor = candidatos.find(c => c.symbol === evaluacion.mejor_candidato);
-        logger.info(`[SPOT] IA SELECCIONÓ: ${evaluacion.mejor_candidato} | Razon: ${evaluacion.razon}`);
+        const nombresMejores = evaluacion.mejores_candidatos.map(c => c.symbol);
+        const mejoresCandidatos = candidatos.filter(c => nombresMejores.includes(c.symbol));
+        
+        logger.info(`[SPOT] IA SELECCIONÓ (${nombresMejores.length}): ${nombresMejores.join(', ')}`);
 
         // 3. Analisis global (Fear & Greed)
         const [fearGreed, sesionMercado] = await Promise.all([
@@ -90,8 +92,8 @@ async function runSpotBot() {
                     return bal && parseFloat(bal.free) > 0.0001;
                 });
 
-                // 3. Monedas a evaluar: lo que ya tiene + la mejor oportunidad nueva
-                const targets = [...new Set([...heldInWatchlist, mejor.symbol])];
+                // 3. Monedas a evaluar: lo que ya tiene + todos los mejores candidatos
+                const targets = [...new Set([...heldInWatchlist, ...nombresMejores])];
                 
                 for (const symbol of targets) {
                     const candidate = candidatos.find(c => c.symbol === symbol);
@@ -115,8 +117,8 @@ async function runSpotBot() {
 
                     logger.info(`[SPOT][${user.nombre}] Decision para ${symbol}: ${decision.accion}`);
 
-                    // Guardar decisión para el dashboard (solo la más relevante)
-                    if (symbol === mejor.symbol || decision.accion === 'SELL') {
+                    // Guardar decisión para el dashboard (priorizamos la de compra si es de los mejores, o si es venta)
+                    if (nombresMejores.includes(symbol) || decision.accion === 'SELL') {
                         await logger.logDecisionSpot({
                             user_id: user.id,
                             symbol: symbol,
@@ -134,7 +136,8 @@ async function runSpotBot() {
                     }
 
                     // Ejecución
-                    if (decision.accion === 'BUY' && !tienePosicion && symbol === mejor.symbol) {
+                    // Ahora permite comprar CUALQUIERA de los mejores candidatos si no hay posición
+                    if (decision.accion === 'BUY' && !tienePosicion && nombresMejores.includes(symbol)) {
                         await traderSpot.executeBuy(user, decision, candidate.precioActual);
                     } else if (decision.accion === 'SELL' && tienePosicion) {
                         await traderSpot.executeSell(user, decision, candidate.precioActual);

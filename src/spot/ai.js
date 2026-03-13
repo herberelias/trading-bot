@@ -139,7 +139,7 @@ async function evaluarCandidatosSpot(candidatos, noticiasTrump) {
     }).join('\n');
 
     const prompt = `Eres un INVERSIONISTA EXPERTO en Trading SPOT de Criptomonedas.
-Tu objetivo es elegir el MEJOR candidato para invertir USDT en este momento.
+Tu objetivo es elegir el MEJOR o los MEJORES candidatos para invertir USDT en este momento.
 
 ═══════════════════════════════════════════════════
 NOTICIAS RELEVANTES
@@ -157,17 +157,17 @@ ${tableStr}
 REGLAS DE SELECCION:
 ═══════════════════════════════════════════════════
 1. PRIORIDAD: Busca monedas en retroceso alcista o sobreventa (RSI < 40) si la tendencia general es buena.
-2. EVITAR: No compres monedas con RSI 1H > 70 o que esten en maximos locales.
-3. DIVERSIFICACION: Si ya estamos en una moneda, recomienda mantener o cambiar solo si hay una oportunidad mucho mejor.
+2. DIVERSIFICACION: Puedes elegir hasta 3 candidatos si el mercado es favorable.
+3. EVITAR: No compres monedas con RSI 1H > 70.
 
 ═══════════════════════════════════════════════════
 RESPUESTA — SOLO JSON SIN TEXTO EXTRA
 ═══════════════════════════════════════════════════
 {
-  "mejor_candidato": "SYMBOL",
-  "confianza": 0-1,
-  "razon": "Explicacion breve de por que es la mejor opcion",
-  "accion_recomendada": "BUY / WAIT"
+  "mejores_candidatos": [
+    { "symbol": "SYMBOL", "confianza": 0-1, "razon": "...", "accion_recomendada": "BUY" },
+    ...
+  ]
 }`;
 
     try {
@@ -178,7 +178,12 @@ RESPUESTA — SOLO JSON SIN TEXTO EXTRA
         let text = response.data.candidates[0].content.parts[0].text.trim();
         text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
 
-        return JSON.parse(text);
+        const json = JSON.parse(text);
+        // Compatibilidad: asegurar que siempre devuelva un array
+        if (json.mejor_candidato && !json.mejores_candidatos) {
+            json.mejores_candidatos = [{ symbol: json.mejor_candidato, confianza: json.confianza, razon: json.razon, accion_recomendada: json.accion_recomendada }];
+        }
+        return json;
     } catch (error) {
         logger.error('[SPOT] Error en evaluarCandidatosSpot', error.message);
         return null;
