@@ -188,5 +188,5 @@ async function runSpotBot() {
     }
 }
 
-cron.schedule('*/30 * * * *', () => { runSpotBot(); });
+cron.schedule('*/15 * * * *', () => { runSpotBot(); });
 runSpotBot();
