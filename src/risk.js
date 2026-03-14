@@ -2,6 +2,12 @@ require('dotenv').config();
 const logger = require('./logger');
 const db = require('./db');
 
+function confidencePct(confidence) {
+    const value = parseFloat(confidence || 0);
+    if (!Number.isFinite(value)) return '0.00';
+    return (value <= 1 ? value * 100 : value).toFixed(2);
+}
+
 async function getTodayClosedPnl(user = null) {
     try {
         const userId = user ? user.id : 1;
@@ -120,7 +126,7 @@ async function checkRiskPermissions(decision, isPositionOpen, user = null, conte
     }
 
     // LONG / SHORT: IA tiene libertad total, sin restriccion por posicion abierta
-    logger.info(`PERMITIDO: ${decision.accion} | Confianza: ${decision.confianza} | Riesgo: ${decision.riesgo_pct}%`);
+    logger.info(`PERMITIDO: ${decision.accion} | Confianza: ${confidencePct(decision.confianza)}% | Riesgo: ${decision.riesgo_pct}%`);
     return { canTrade: true, reason: null };
 }
 

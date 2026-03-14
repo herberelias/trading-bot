@@ -188,7 +188,7 @@ async function runSpotBot() {
                     logger.info(`[SPOT][${user.nombre}] Decision para ${symbol}: ${decision.accion}`);
 
                     // Guardrails de ejecucion: IA + riesgo + reglas cuantitativas.
-                    const riskResult = await riskSpot.checkRiskPermissionsSpot(decision, tienePosicion, user);
+                    const riskResult = await riskSpot.checkRiskPermissionsSpot(decision, tienePosicion, user, symbol);
                     let canExecute = riskResult.canTrade;
                     let blockReason = riskResult.reason || null;
 

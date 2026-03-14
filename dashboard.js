@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const MySQLStoreFactory = require('express-mysql-session');
 const db = require('./src/db');
 const app = express();
 const PORT = process.env.PORT || 3004;
@@ -10,11 +11,37 @@ const SESSION_COOKIE_SECURE_RAW = (process.env.SESSION_COOKIE_SECURE || '').trim
 const SESSION_COOKIE_SECURE = SESSION_COOKIE_SECURE_RAW === ''
     ? IS_PROD
     : (SESSION_COOKIE_SECURE_RAW === 'true' || SESSION_COOKIE_SECURE_RAW === '1');
+const SESSION_TABLE = process.env.SESSION_STORE_TABLE || 'user_sessions';
+
+let sessionStore;
+try {
+    const MySQLStore = MySQLStoreFactory(session);
+    sessionStore = new MySQLStore({
+        host: process.env.DB_HOST,
+        port: Number(process.env.DB_PORT || 3306),
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+        createDatabaseTable: true,
+        schema: {
+            tableName: SESSION_TABLE,
+            columnNames: {
+                session_id: 'session_id',
+                expires: 'expires',
+                data: 'data'
+            }
+        }
+    });
+    console.log(`[SESSION] MySQL store activo (tabla: ${SESSION_TABLE})`);
+} catch (e) {
+    console.error('[SESSION] No se pudo inicializar MySQL store, usando MemoryStore:', e?.message || e);
+}
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
     secret: SESSION_SECRET,
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {

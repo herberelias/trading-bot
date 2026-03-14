@@ -9,6 +9,12 @@ const trader = require('./src/trader');
 const context = require('./src/context');
 const db = require('./src/db'); // New dependency
 
+function confidencePct(confidence) {
+    const value = parseFloat(confidence || 0);
+    if (!Number.isFinite(value)) return '0.00';
+    return (value <= 1 ? value * 100 : value).toFixed(2);
+}
+
 async function runBot() {
     try {
         const par = process.env.PAR;
@@ -107,7 +113,7 @@ async function runBot() {
                     continue;
                 }
 
-                logger.info(`[${user.nombre}] IA: ${decision.accion} | Confianza: ${decision.confianza}%`);
+                logger.info(`[${user.nombre}] IA: ${decision.accion} | Confianza: ${confidencePct(decision.confianza)}%`);
 
                 // 5. Validar permisos de riesgo (Usando config de BD del usuario)
                 const riskResult = await risk.checkRiskPermissions(decision, isPositionOpen, user, {
