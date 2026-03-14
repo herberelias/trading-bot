@@ -6,6 +6,10 @@ const app = express();
 const PORT = process.env.PORT || 3004;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'wintrade-pro-secret-2026';
 const IS_PROD = process.env.NODE_ENV === 'production';
+const SESSION_COOKIE_SECURE_RAW = (process.env.SESSION_COOKIE_SECURE || '').trim().toLowerCase();
+const SESSION_COOKIE_SECURE = SESSION_COOKIE_SECURE_RAW === ''
+    ? IS_PROD
+    : (SESSION_COOKIE_SECURE_RAW === 'true' || SESSION_COOKIE_SECURE_RAW === '1');
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -16,7 +20,7 @@ app.use(session({
     cookie: {
         httpOnly: true,
         sameSite: 'lax',
-        secure: IS_PROD,
+        secure: SESSION_COOKIE_SECURE,
         maxAge: 24 * 60 * 60 * 1000
     }
 }));
@@ -745,12 +749,22 @@ async function getDashboardData(period, userId) {
 app.get('/login', (req, res) => res.send(loginHTML()));
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
+    console.log('[LOGIN_ATTEMPT]', {
+        username,
+        secureCookie: SESSION_COOKIE_SECURE,
+        xForwardedProto: req.headers['x-forwarded-proto'] || null,
+        host: req.headers.host
+    });
     try {
         const [rows] = await db.execute('SELECT * FROM users WHERE nombre = ? AND password = ? AND activo = 1', [username, password]);
         if (rows.length > 0) {
             req.session.loggedIn = true; req.session.userId = rows[0].id; req.session.userRole = rows[0].role;
+            console.log('[LOGIN_OK]', { userId: rows[0].id, role: rows[0].role });
             res.redirect('/');
-        } else { res.send(loginHTML('Credenciales inválidas')); }
+        } else {
+            console.log('[LOGIN_INVALID]', { username });
+            res.send(loginHTML('Credenciales inválidas'));
+        }
     } catch (e) {
         console.error('[LOGIN_ERROR]', e && (e.code || e.message || e));
         if (e && (e.code === 'ECONNREFUSED' || e.code === 'PROTOCOL_CONNECTION_LOST' || e.code === 'ER_ACCESS_DENIED_ERROR' || e.code === 'ER_BAD_DB_ERROR')) {
