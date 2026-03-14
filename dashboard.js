@@ -751,7 +751,13 @@ app.post('/login', async (req, res) => {
             req.session.loggedIn = true; req.session.userId = rows[0].id; req.session.userRole = rows[0].role;
             res.redirect('/');
         } else { res.send(loginHTML('Credenciales inválidas')); }
-    } catch (e) { res.send(loginHTML('Error de sistema')); }
+    } catch (e) {
+        console.error('[LOGIN_ERROR]', e && (e.code || e.message || e));
+        if (e && (e.code === 'ECONNREFUSED' || e.code === 'PROTOCOL_CONNECTION_LOST' || e.code === 'ER_ACCESS_DENIED_ERROR' || e.code === 'ER_BAD_DB_ERROR')) {
+            return res.send(loginHTML('Base de datos no disponible'));
+        }
+        res.send(loginHTML('Error de sistema'));
+    }
 });
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
