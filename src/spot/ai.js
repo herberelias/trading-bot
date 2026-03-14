@@ -27,14 +27,14 @@ async function consultarGeminiSpot(
     const rsi15m = parseFloat(indicators15m.rsi);
     const rsi1d = indicators1d ? parseFloat(indicators1d.rsi) : 50;
 
-    const balanceStr = `USDT disponible: ${balanceSpot.usdt.toFixed(2)} | ETH disponible: ${balanceSpot.eth.toFixed(6)} (valor: ~${(balanceSpot.eth * precioActual).toFixed(2)} USDT)`;
+    const balanceStr = `USDT disponible: ${balanceSpot.usdt.toFixed(2)} | Activo disponible: ${balanceSpot.eth.toFixed(6)} (valor: ~${(balanceSpot.eth * precioActual).toFixed(2)} USDT)`;
     const dcaStr = ultimaCompraPrecio
-        ? `Último precio de compra de ETH fue a ${ultimaCompraPrecio} USDT.`
-        : 'Aún no has comprado ETH (no hay precio promedio).';
+        ? `Último precio de compra fue a ${ultimaCompraPrecio} USDT.`
+        : 'Aún no hay precio promedio para este activo.';
 
     const posicionStr = balanceSpot.eth > 0.0001
-        ? `Holding: ${balanceSpot.eth.toFixed(6)} ETH (~${(balanceSpot.eth * precioActual).toFixed(2)} USDT). ${dcaStr}`
-        : 'Sin ETH en cartera (100% en USDT).';
+        ? `Holding: ${balanceSpot.eth.toFixed(6)} UNIDADES (~${(balanceSpot.eth * precioActual).toFixed(2)} USDT). ${dcaStr}`
+        : 'Sin posición en este activo (100% en USDT).';
 
     const historialStr = historialHoy.length > 0
         ? `${historialHoy.length} operaciones hoy`
@@ -51,7 +51,7 @@ async function consultarGeminiSpot(
     const capitalMaxPct = process.env.CAPITAL_MAXIMO_PCT || 90;
 
     const prompt = `Eres un INVERSIONISTA EXPERTO en Trading SPOT de Criptomonedas.
-Operas ETH-USDT en BingX SPOT. Tu objetivo es la ACUMULACION DE RIQUEZA a largo plazo.
+Tu objetivo es la ACUMULACION DE RIQUEZA y la PROTECCION DEL CAPITAL.
 
 ═══════════════════════════════════════════════════
 NOTICIAS RELEVANTES (Contexto Fundamental)
@@ -65,7 +65,7 @@ TIMEFRAME 1D (CRITICO): Tendencia ${tendencia1d} | RSI: ${rsi1d}
 TIMEFRAME 4H: Tendencia ${tendencia4h}
 TIMEFRAME 1H: Tendencia ${tendencia1h}
 
-PRECIO ACTUAL ETH: ${precioActual} USDT
+PRECIO ACTUAL: ${precioActual} USDT
 
 ═══════════════════════════════════════════════════
 REGLAS DE ORO (ESTRATEGIA PROFESIONAL — TIBURON SPOT)
@@ -77,16 +77,17 @@ REGLAS DE ORO (ESTRATEGIA PROFESIONAL — TIBURON SPOT)
 - GESTION DE CAPITAL: Si tu USDT es bajo (< 20% del total), SE MUCHO MAS EXIGENTE. Solo compra si el RSI 1D esta en zona de sobreventa (<40).
 - capital_pct: Usa montos pequeños (10-20%) para DCA normal. Guarda el 20-40% solo para caidas fuertes en soportes diarios.
 
-2. VENTA (SELL) PARA GANANCIAS REALES:
+2. VENTA (SELL) PARA GANANCIAS Y PROTECCION:
 - PROTECCION DE PROFIT: Busca vender cuando el precio suba un 3% o 5% respecto a tu precio promedio.
 - RSI 1D: Venta masiva obligatoria si RSI 1D > 75 (zona de burbuja).
+- PROTECCION DE CAPITAL (SALIDA ESTRATEGICA): Si ya tienes el activo pero la tendencia 1D se vuelve BAJISTA y el RSI 1H rompe hacia abajo con fuerza, vende para preservar USDT y COMPRAR MAS ABAJO. No te quedes atrapado en una caída larga.
 - ESTRATEGIA ESCALADA: 
   * Vende el 50% al +3% de ganancia. 
-  * Vende el otro 50% al +5% o si la tendencia 1D se vuelve bajista.
+  * Vende el resto si hay señales de agotamiento o cambio de tendencia a bajista.
 
 3. HOLD Y PACIENCIA:
-- Si ya tienes ETH y el precio esta lateral, no hagas nada. Ten paciencia, deja que el mercado se mueva.
-- Tu mision es ganar dinero en todo momento.
+- Si ya tienes el activo y la tendencia es alcista o lateral saludable, HOLD. Ten paciencia, deja que el mercado se mueva.
+- Tu mision es ganar dinero y no quedar "atrapado" (bag holding).
 
 ═══════════════════════════════════════════════════
 RESPUESTA — SOLO JSON SIN TEXTO EXTRA
