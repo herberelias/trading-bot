@@ -4,14 +4,21 @@ const session = require('express-session');
 const db = require('./src/db');
 const app = express();
 const PORT = process.env.PORT || 3004;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'wintrade-pro-secret-2026';
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
-    secret: 'wintrade-pro-secret-2026',
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 }
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: IS_PROD,
+        maxAge: 24 * 60 * 60 * 1000
+    }
 }));
 
 function requireAuth(req, res, next) {
@@ -191,6 +198,61 @@ const dashboardHTML = (data, period) => `<!DOCTYPE html>
             <div class="kpi-label">⚡ Operaciones Ejecutadas</div>
             <div class="kpi-value">${data.global.executedTrades}</div>
             <div class="kpi-sub">${data.futuros.executedTrades} Futuros | ${data.spot.totalTrades} Spot</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">📉 Max Drawdown</div>
+            <div class="kpi-value" style="color:var(--danger)">-$${data.analytics.drawdownUsdt}</div>
+            <div class="kpi-sub">Futuros (${data.analytics.totalClosedTrades} trades cerrados)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">🧠 Expectancy / Trade</div>
+            <div class="kpi-value" style="color:${parseFloat(data.analytics.expectancyUsdt) >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                ${parseFloat(data.analytics.expectancyUsdt) >= 0 ? '+' : ''}$${data.analytics.expectancyUsdt}
+            </div>
+            <div class="kpi-sub">Valor esperado por operación (futuros)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">🎯 Winrate Top Símbolo</div>
+            <div class="kpi-value" style="color:var(--warning)">
+                ${data.analytics.bestSymbol ? `${data.analytics.bestSymbol.winrate}%` : '--'}
+            </div>
+            <div class="kpi-sub">
+                ${data.analytics.bestSymbol ? `${data.analytics.bestSymbol.symbol} (${data.analytics.bestSymbol.total} ops)` : 'Sin datos cerrados'}
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:2rem;">
+        <div class="card-header">
+            <div class="card-title" style="color:var(--warning);">🏅 Top 5 Winrate Por Símbolo (Futuros)</div>
+            <span style="font-size:0.7rem; color:var(--text-dim); font-weight:700;">Periodo: ${period.toUpperCase()}</span>
+        </div>
+        <div class="table-wrap">
+            <table style="min-width: 520px;">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Símbolo</th>
+                        <th>Winrate</th>
+                        <th>Wins</th>
+                        <th>Total Ops</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.analytics.winrateBySymbol && data.analytics.winrateBySymbol.length > 0
+                        ? data.analytics.winrateBySymbol.map((r, idx) => `
+                            <tr>
+                                <td style="color:var(--text-dim); font-weight:800;">${idx + 1}</td>
+                                <td><b>${r.symbol}</b></td>
+                                <td style="font-weight:900; color:${parseFloat(r.winrate) >= 50 ? 'var(--success)' : 'var(--danger)'};">${parseFloat(r.winrate).toFixed(2)}%</td>
+                                <td>${r.wins}</td>
+                                <td>${r.total}</td>
+                            </tr>
+                        `).join('')
+                        : '<tr><td colspan="5" style="text-align:center; padding:1.4rem; color:var(--text-dim);">Sin operaciones cerradas para calcular winrate por símbolo.</td></tr>'
+                    }
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -401,17 +463,42 @@ async function getDashboardData(period, userId) {
         }
     }
 
-    let tf = `user_id = ${userId}`;
-    if (period === 'today') tf += ` AND DATE(timestamp_apertura) = CURDATE()`;
-    else if (period === '7days') tf += ` AND timestamp_apertura >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)`;
-
-    const tfCierre = tf.replace('timestamp_apertura', 'timestamp_cierre');
-    const tfDec = tf.replace('timestamp_apertura', 'timestamp');
+    let futuresDateFilter = '';
+    let spotDateFilter = '';
+    let futuresClosedDateFilter = '';
+    if (period === 'today') {
+        futuresDateFilter = ' AND DATE(timestamp_apertura) = CURDATE()';
+        spotDateFilter = ' AND DATE(timestamp_apertura) = CURDATE()';
+        futuresClosedDateFilter = ' AND DATE(timestamp_cierre) = CURDATE()';
+    } else if (period === '7days') {
+        futuresDateFilter = ' AND timestamp_apertura >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+        spotDateFilter = ' AND timestamp_apertura >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+        futuresClosedDateFilter = ' AND timestamp_cierre >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+    }
 
     // Stats Calculations
-    const [fStats] = await db.execute(`SELECT COUNT(*) as total, SUM(resultado='WIN') as win, SUM(resultado='WIN' OR resultado='LOSS') as executed, SUM(ganancia_perdida) as pnl FROM bot_trades WHERE ${tfCierre.replace(new RegExp('timestamp_cierre','g'), 'timestamp_apertura')}`);
-    const [fExecuted] = await db.execute(`SELECT COUNT(*) as executed FROM bot_trades WHERE timestamp_cierre IS NOT NULL AND ${tfCierre}`);
-    const [sStats] = await db.execute(`SELECT COUNT(*) as total FROM spot_trades WHERE ${tf}`);
+    const [fStats] = await db.execute(
+        `SELECT
+            COUNT(*) as total,
+            SUM(resultado = 'WIN') as win,
+            SUM(resultado = 'WIN' OR resultado = 'LOSS') as executed,
+            COALESCE(SUM(ganancia_perdida), 0) as pnl
+         FROM bot_trades
+         WHERE user_id = ?${futuresDateFilter}`,
+        [userId]
+    );
+    const [fExecuted] = await db.execute(
+        `SELECT COUNT(*) as executed
+         FROM bot_trades
+         WHERE user_id = ? AND timestamp_cierre IS NOT NULL${futuresClosedDateFilter}`,
+        [userId]
+    );
+    const [sStats] = await db.execute(
+        `SELECT COUNT(*) as total
+         FROM spot_trades
+         WHERE user_id = ?${spotDateFilter}`,
+        [userId]
+    );
     
     // Recent Combined Activity
     let fTradesRaw = [];
@@ -434,7 +521,13 @@ async function getDashboardData(period, userId) {
             }));
     } else {
         // Traer de DB (Simulado)
-        const [rows] = await db.execute(`SELECT direccion as accion, precio_entrada, capital_usado as margen, precio_cierre, ganancia_perdida, resultado, timestamp_apertura, timestamp_cierre FROM bot_trades WHERE ${tf} ORDER BY timestamp_apertura DESC LIMIT 20`);
+        const [rows] = await db.execute(
+            `SELECT direccion as accion, precio_entrada, capital_usado as margen, precio_cierre, ganancia_perdida, resultado, timestamp_apertura, timestamp_cierre
+             FROM bot_trades
+             WHERE user_id = ?${futuresDateFilter}
+             ORDER BY timestamp_apertura DESC LIMIT 20`,
+            [userId]
+        );
         fTradesRaw = rows;
     }
 
@@ -465,17 +558,89 @@ async function getDashboardData(period, userId) {
     }));
 
     // Combined (legacy, keep for chart compat)
-    const allTrades = [...fTradesRaw, ...sTradesRaw].sort((a,b) => new Date(b.hora) - new Date(a.hora)).slice(0, 25);
-    allTrades.forEach(t => {
-        t.hora = fmt(t.hora);
-        t.precio = parseFloat(t.precio).toFixed(2);
-    });
+    const allTrades = [...fTradesRaw, ...sTradesRaw]
+        .map(t => {
+            const ts = new Date(t.hora || t.timestamp_apertura || t.timestamp_cierre || Date.now()).getTime();
+            const priceNum = parseFloat(t.precio || t.precio_entrada || 0);
+            return {
+                ...t,
+                __ts: Number.isFinite(ts) ? ts : 0,
+                hora: fmt(t.hora || t.timestamp_apertura || t.timestamp_cierre || Date.now()),
+                precio: Number.isFinite(priceNum) ? priceNum.toFixed(2) : '0.00'
+            };
+        })
+        .sort((a, b) => b.__ts - a.__ts)
+        .slice(0, 25)
+        .map(({ __ts, ...rest }) => rest);
 
     // Charting (Disabled)
     const chart = { labels: [], data: [] };
 
     // Performance List
     const [dailyRows] = await db.execute(`SELECT DATE_FORMAT(timestamp_cierre, '%Y-%m-%d') as fecha, SUM(ganancia_perdida) as pnl, COUNT(*) as total FROM bot_trades WHERE user_id = ? AND timestamp_cierre IS NOT NULL GROUP BY fecha ORDER BY fecha DESC LIMIT 10`, [userId]);
+
+    // Advanced futures metrics: expectancy, drawdown, and winrate by symbol.
+    const [expectancyRows] = await db.execute(
+        `SELECT
+            COUNT(*) as total,
+            SUM(resultado = 'WIN') as wins,
+            SUM(resultado = 'LOSS') as losses,
+            AVG(CASE WHEN resultado = 'WIN' THEN ganancia_perdida END) as avg_win,
+            AVG(CASE WHEN resultado = 'LOSS' THEN ABS(ganancia_perdida) END) as avg_loss_abs
+         FROM bot_trades
+         WHERE user_id = ? AND timestamp_cierre IS NOT NULL${futuresClosedDateFilter}`,
+        [userId]
+    );
+
+    const [winrateSymbolRows] = await db.execute(
+        `SELECT
+            COALESCE(par, 'N/A') as symbol,
+            COUNT(*) as total,
+            SUM(resultado = 'WIN') as wins,
+            ROUND((SUM(resultado = 'WIN') / COUNT(*)) * 100, 2) as winrate
+         FROM bot_trades
+         WHERE user_id = ? AND timestamp_cierre IS NOT NULL${futuresClosedDateFilter}
+         GROUP BY par
+         ORDER BY winrate DESC, total DESC
+         LIMIT 5`,
+        [userId]
+    );
+
+    const [drawdownRows] = await db.execute(
+        `SELECT COALESCE(ganancia_perdida, 0) as pnl
+         FROM bot_trades
+         WHERE user_id = ? AND timestamp_cierre IS NOT NULL${futuresClosedDateFilter}
+         ORDER BY timestamp_cierre ASC, id ASC`,
+        [userId]
+    );
+
+    const ex = expectancyRows[0] || {};
+    const exTotal = parseInt(ex.total || 0, 10);
+    const exWins = parseInt(ex.wins || 0, 10);
+    const exLosses = parseInt(ex.losses || 0, 10);
+    const exAvgWin = parseFloat(ex.avg_win || 0);
+    const exAvgLoss = parseFloat(ex.avg_loss_abs || 0);
+    const winRate = exTotal > 0 ? (exWins / exTotal) : 0;
+    const lossRate = exTotal > 0 ? (exLosses / exTotal) : 0;
+    const expectancy = (winRate * exAvgWin) - (lossRate * exAvgLoss);
+
+    let cumulative = 0;
+    let peak = 0;
+    let maxDrawdown = 0;
+    for (const row of drawdownRows) {
+        cumulative += parseFloat(row.pnl || 0);
+        if (cumulative > peak) peak = cumulative;
+        const drawdown = cumulative - peak;
+        if (drawdown < maxDrawdown) maxDrawdown = drawdown;
+    }
+
+    const bestSymbol = winrateSymbolRows.length > 0 ? winrateSymbolRows[0] : null;
+    const winrateBySymbol = winrateSymbolRows.map(r => ({
+        symbol: r.symbol || 'N/A',
+        total: parseInt(r.total || 0, 10),
+        wins: parseInt(r.wins || 0, 10),
+        winrate: parseFloat(r.winrate || 0)
+    }));
 
     const executedFuturos = fExecuted[0].executed || 0;
     const executedSpot   = sStats[0].total || 0;
@@ -507,7 +672,8 @@ async function getDashboardData(period, userId) {
         ethActual:      mainAssetStr
     };
 
-    const lastPurchasePrice = await traderSpot.getUltimaCompra(user.id);
+    const lastBuySymbol = (sTradesRaw.find(t => t.accion === 'BUY') || sTradesRaw[0])?.symbol || 'ETH-USDT';
+    const lastPurchasePrice = await traderSpot.getUltimaCompra(user.id, lastBuySymbol);
     spotPnl.ultimaCompra = lastPurchasePrice ? lastPurchasePrice.precio.toFixed(2) : '--';
 
     // AI Futuros: ultima decision de ESTE usuario
@@ -526,6 +692,17 @@ async function getDashboardData(period, userId) {
         userId: user.id, userName: user.nombre, userRole: user.role,
         global: {
             executedTrades: executedFuturos + executedSpot
+        },
+        analytics: {
+            drawdownUsdt: Math.abs(maxDrawdown).toFixed(2),
+            expectancyUsdt: expectancy.toFixed(2),
+            winrateBySymbol,
+            bestSymbol: bestSymbol ? {
+                symbol: bestSymbol.symbol || 'N/A',
+                winrate: parseFloat(bestSymbol.winrate || 0).toFixed(2),
+                total: parseInt(bestSymbol.total || 0, 10)
+            } : null,
+            totalClosedTrades: exTotal
         },
         futuros: {
             balance: parseFloat(balFut).toFixed(2),
@@ -896,16 +1073,23 @@ app.post('/perfil/update', requireAuth, async (req, res) => {
 });
 
 app.get('/', requireAuth, async (req, res) => {
-    const period = req.query.period || 'today';
-    const userId = (req.session.userRole === 'admin' && req.query.user_id) ? req.query.user_id : req.session.userId;
-    const data = await getDashboardData(period, userId);
+    const periodRaw = req.query.period || 'today';
+    const period = ['today', '7days', 'all'].includes(periodRaw) ? periodRaw : 'today';
+
+    let selectedUserId = req.session.userId;
+    if (req.session.userRole === 'admin' && req.query.user_id) {
+        const parsed = parseInt(req.query.user_id, 10);
+        if (Number.isInteger(parsed) && parsed > 0) selectedUserId = parsed;
+    }
+
+    const data = await getDashboardData(period, selectedUserId);
     if (!data) return res.redirect('/logout');
 
     let html = dashboardHTML(data, period);
     if (req.session.userRole === 'admin') {
         const [users] = await db.execute('SELECT id, nombre FROM users');
         const selector = `<select onchange="window.location.href='/?user_id='+this.value" style="margin-left:15px;">
-            ${users.map(u => `<option value="${u.id}" ${userId == u.id ? 'selected' : ''}>${u.nombre}</option>`).join('')}
+            ${users.map(u => `<option value="${u.id}" ${selectedUserId == u.id ? 'selected' : ''}>${u.nombre}</option>`).join('')}
         </select>`;
         html = html.replace('<!-- SELECTOR_USUARIO -->', selector);
     }

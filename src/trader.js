@@ -449,10 +449,22 @@ async function checkAndCloseTrades(user = null) {
 
 async function executeTrade(decision, currentPrice, user = null) {
     const isReal = user ? user.modo_real : (process.env.MODO_REAL === 'true');
-    
-    // La IA ahora decide el apalancamiento y el riesgo
-    const apalancamiento = decision.apalancamiento || (user ? user.apalancamiento : (parseFloat(process.env.APALANCAMIENTO) || 10));
-    const riesgo_pct = decision.riesgo_pct || (user ? user.riesgo_por_trade : (parseFloat(process.env.RIESGO_POR_TRADE) || 1));
+
+    // La IA propone apalancamiento/riesgo, pero se acotan por limites de usuario y entorno.
+    const userLeverageLimit = parseFloat(user ? user.apalancamiento : (parseFloat(process.env.APALANCAMIENTO) || 10)) || 10;
+    const aiLeverage = parseFloat(decision.apalancamiento);
+    const apalancamiento = Number.isFinite(aiLeverage)
+        ? Math.min(Math.max(aiLeverage, 1), Math.max(userLeverageLimit, 1))
+        : Math.max(userLeverageLimit, 1);
+
+    const userRiskLimit = parseFloat(user ? user.riesgo_por_trade : (parseFloat(process.env.RIESGO_POR_TRADE) || 1)) || 1;
+    const maxRiskPctEnv = parseFloat(process.env.FUTURES_MAX_RISK_PCT || 10);
+    const riskCap = Math.min(Math.max(userRiskLimit, 0.2), Math.max(maxRiskPctEnv, 0.2));
+    const aiRisk = parseFloat(decision.riesgo_pct);
+    const riesgo_pct = Number.isFinite(aiRisk)
+        ? Math.min(Math.max(aiRisk, 0.2), riskCap)
+        : Math.min(Math.max(userRiskLimit, 0.2), riskCap);
+
     const userId = user ? user.id : 1;
 
     if (!isReal) {
@@ -483,7 +495,25 @@ async function executeTrade(decision, currentPrice, user = null) {
         if (capitalEnRiesgo <= 0) throw new Error('Capital en riesgo es 0.');
         if (!decision.stop_loss || decision.stop_loss === currentPrice) throw new Error('Stop loss invalido.');
 
+        const sl = parseFloat(decision.stop_loss);
+        const tp = parseFloat(decision.take_profit);
+        const action = decision.accion;
+        if (!Number.isFinite(sl) || !Number.isFinite(tp)) throw new Error('SL/TP no numericos.');
+
+        if (action === 'LONG' && !(sl < currentPrice && tp > currentPrice)) {
+            throw new Error(`Setup LONG invalido: SL ${sl} / TP ${tp} con precio ${currentPrice}`);
+        }
+        if (action === 'SHORT' && !(sl > currentPrice && tp < currentPrice)) {
+            throw new Error(`Setup SHORT invalido: SL ${sl} / TP ${tp} con precio ${currentPrice}`);
+        }
+
         const distanciaSL = Math.abs(currentPrice - decision.stop_loss);
+        const minSlDistancePct = parseFloat(process.env.FUTURES_MIN_SL_DISTANCE_PCT || 0.1);
+        const slDistancePct = (distanciaSL / currentPrice) * 100;
+        if (slDistancePct < minSlDistancePct) {
+            throw new Error(`SL demasiado cercano (${slDistancePct.toFixed(3)}% < ${minSlDistancePct}%).`);
+        }
+
         const quantity = parseFloat((capitalEnRiesgo / distanciaSL).toFixed(4));
 
         if (quantity <= 0) throw new Error('Cantidad calculada invalida.');

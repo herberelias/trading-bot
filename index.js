@@ -110,7 +110,11 @@ async function runBot() {
                 logger.info(`[${user.nombre}] IA: ${decision.accion} | Confianza: ${decision.confianza}%`);
 
                 // 5. Validar permisos de riesgo (Usando config de BD del usuario)
-                const riskResult = await risk.checkRiskPermissions(decision, isPositionOpen, user);
+                const riskResult = await risk.checkRiskPermissions(decision, isPositionOpen, user, {
+                    currentPrice: precioActual,
+                    racha,
+                    posicionesAbiertas
+                });
 
                 // 6. Guardar decision
                 const decisionLog = {
