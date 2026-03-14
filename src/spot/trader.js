@@ -73,16 +73,16 @@ async function getTodayTradesSpot(userId) {
     }
 }
 
-// Obtener ultimo precio de compra (Filtrado por usuario)
-async function getUltimaCompra(userId) {
+// Obtener ultimo precio de compra de un simbolo (Filtrado por usuario)
+async function getUltimaCompra(userId, symbol) {
     try {
         const query = `
             SELECT precio_entrada, timestamp_apertura
             FROM spot_trades
-            WHERE user_id = ? AND accion = 'BUY'
+            WHERE user_id = ? AND symbol = ? AND accion = 'BUY'
             ORDER BY timestamp_apertura DESC LIMIT 1
         `;
-        const [rows] = await db.execute(query, [userId]);
+        const [rows] = await db.execute(query, [userId, symbol]);
         if (rows.length === 0) return null;
         return {
             precio: parseFloat(rows[0].precio_entrada),

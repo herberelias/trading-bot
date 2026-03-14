@@ -114,9 +114,21 @@ async function runSpotBot() {
                 const usdtBalance = parseFloat(allBalances.find(b => b.asset === 'USDT')?.free || 0);
 
                 // 2. Identificar qué activos del escaneo tiene el usuario
-                const heldAssets = allBalances
+                let heldAssets = allBalances
                     .filter(b => parseFloat(b.free) > 0.0001 && b.asset !== 'USDT' && b.asset !== 'USDC')
                     .map(b => `${b.asset}-USDT`);
+
+                // Si es simulado, también buscamos en la base de datos qué monedas 'posee'
+                if (user.modo_real === 0) {
+                    const [simulatedRows] = await db.execute(`
+                        SELECT symbol, SUM(IF(accion='BUY', cantidad, -cantidad)) as total 
+                        FROM spot_trades 
+                        WHERE user_id = ? 
+                        GROUP BY symbol HAVING total > 0.0001
+                    `, [user.id]);
+                    const simAssets = simulatedRows.map(r => r.symbol);
+                    heldAssets = [...new Set([...heldAssets, ...simAssets])];
+                }
 
                 // 3. Monedas a evaluar: lo que ya tiene + las recomendaciones de la IA
                 const targets = [...new Set([...heldAssets, ...nombresMejores])];
@@ -129,15 +141,32 @@ async function runSpotBot() {
 
                     const asset = symbol.split('-')[0];
                     const balanceAsset = parseFloat(allBalances.find(b => b.asset === asset)?.free || 0);
-                    const tienePosicion = balanceAsset > 0.0001;
+                    
+                    // Si el balance de la API es 0 pero está en heldAssets (caso simulado), 
+                    // necesitamos simular un balance para la IA
+                    let effectiveAssetBalance = balanceAsset;
+                    if (user.modo_real === 0 && balanceAsset <= 0.0001) {
+                         const [balRow] = await db.execute(`
+                            SELECT SUM(IF(accion='BUY', cantidad, -cantidad)) as total 
+                            FROM spot_trades 
+                            WHERE user_id = ? AND symbol = ?
+                        `, [user.id, symbol]);
+                        effectiveAssetBalance = parseFloat(balRow[0]?.total || 0);
+                    }
+
+                    const tienePosicion = effectiveAssetBalance > 0.0001;
+
+                    // Obtener precio de entrada para que la IA sepa cuándo vender (Profit 3% - 5%)
+                    const lastBuy = await traderSpot.getUltimaCompra(user.id, symbol);
+                    const entryPrice = lastBuy ? lastBuy.precio : null;
 
                     // Decisión individual para esta moneda
                     const decision = await aiSpot.consultarGeminiSpot(
                         candidate.indicators15m, candidate.indicators1h, null, candidate.indicators1d,
                         candidate.precioActual,
-                        { usdt: usdtBalance, eth: balanceAsset },
+                        { usdt: usdtBalance, eth: effectiveAssetBalance },
                         [], // Historial simplificado
-                        fearGreed, null, sesionMercado, 0, null, TrumpNews
+                        fearGreed, null, sesionMercado, 0, entryPrice, TrumpNews
                     );
 
                     if (!decision) continue;
