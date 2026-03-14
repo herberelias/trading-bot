@@ -164,16 +164,33 @@ async function executeSell(user, decision, precioActual) {
             const bal = await getSpotBalance(user, asset);
             assetBalance = bal.asset;
         } else {
-            // Buscar última compra simulada de este simbolo
-            const [lastTrade] = await db.execute('SELECT cantidad FROM spot_trades WHERE user_id = ? AND symbol = ? AND accion = "BUY" ORDER BY id DESC LIMIT 1', [user.id, symbol]);
-            assetBalance = lastTrade[0]?.cantidad || 0;
+            // En simulado usamos la posicion neta (BUY - SELL), no solo la ultima compra.
+            const [netRows] = await db.execute(
+                `SELECT SUM(IF(accion='BUY', cantidad, -cantidad)) as total
+                 FROM spot_trades
+                 WHERE user_id = ? AND symbol = ?`,
+                [user.id, symbol]
+            );
+            assetBalance = parseFloat(netRows[0]?.total || 0);
         }
 
-        const sellPct = (decision.sell_pct || 100) / 100;
+        const sellPctRaw = parseFloat(decision.sell_pct || 100);
+        const sellPct = Math.min(Math.max(sellPctRaw, 0), 100) / 100;
         const qtyToSell = assetBalance * sellPct;
+        const qtyRounded = parseFloat(qtyToSell.toFixed(5));
+        const minQty = parseFloat(process.env.SPOT_MIN_QTY || 0.00001);
+        const minNotionalUsdt = parseFloat(process.env.SPOT_MIN_NOTIONAL_USDT || 1);
+        const estNotionalUsdt = qtyRounded * parseFloat(precioActual || 0);
 
-        if (qtyToSell <= 0) {
+        if (qtyRounded <= 0) {
             logger.warn(`[SPOT] No hay ${asset} para vender para ${user.nombre}`);
+            return;
+        }
+
+        if (qtyRounded < minQty || estNotionalUsdt < minNotionalUsdt) {
+            logger.warn(
+                `[SPOT] SELL bloqueado para ${user.nombre} en ${symbol}: qty=${qtyRounded}, notional=${estNotionalUsdt.toFixed(4)} USDT (minQty=${minQty}, minNotional=${minNotionalUsdt}).`
+            );
             return;
         }
 
@@ -182,16 +199,16 @@ async function executeSell(user, decision, precioActual) {
                 symbol,
                 side: 'SELL',
                 type: 'MARKET',
-                quantity: qtyToSell.toFixed(5)
+                quantity: qtyRounded.toFixed(5)
             });
         }
 
         await db.execute(`
             INSERT INTO spot_trades (user_id, symbol, accion, precio_entrada, capital_usdt, cantidad, cargo_ia, timestamp_apertura)
             VALUES (?, ?, 'SELL', ?, ?, ?, ?, NOW())
-        `, [user.id, symbol, precioActual, qtyToSell * precioActual, qtyToSell, decision.confianza]);
+        `, [user.id, symbol, precioActual, estNotionalUsdt, qtyRounded, decision.confianza]);
 
-        logger.info(`[SPOT] Venta ejecutada para ${user.nombre}: ${qtyToSell.toFixed(6)} ${asset} en ${precioActual}`);
+        logger.info(`[SPOT] Venta ejecutada para ${user.nombre}: ${qtyRounded.toFixed(6)} ${asset} en ${precioActual}`);
 
     } catch (e) {
         logger.error(`[SPOT] Error en executeSell para ${user.nombre}:`, e.message);
