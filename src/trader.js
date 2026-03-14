@@ -514,15 +514,29 @@ async function executeTrade(decision, currentPrice, user = null) {
             throw new Error(`SL demasiado cercano (${slDistancePct.toFixed(3)}% < ${minSlDistancePct}%).`);
         }
 
-        const quantity = parseFloat((capitalEnRiesgo / distanciaSL).toFixed(4));
+        let quantity = parseFloat((capitalEnRiesgo / distanciaSL).toFixed(4));
 
         if (quantity <= 0) throw new Error('Cantidad calculada invalida.');
 
-        // Validacion: posicion no mayor al 90% del balance * apalancamiento
+        // Validacion de tamano maximo de posicion respecto al balance y apalancamiento.
+        const maxPositionUtilization = parseFloat(process.env.FUTURES_MAX_POSITION_UTILIZATION || 0.9);
+        const clampPositionSize = process.env.FUTURES_CLAMP_POSITION_SIZE !== 'false';
         const valorPosicion = quantity * currentPrice;
-        const maxPosicion = balance * apalancamiento * 0.9;
+        const maxPosicion = balance * apalancamiento * maxPositionUtilization;
         if (valorPosicion > maxPosicion) {
-            throw new Error(`Posicion muy grande: ${valorPosicion.toFixed(2)} USDT > max ${maxPosicion.toFixed(2)} USDT`);
+            if (!clampPositionSize) {
+                throw new Error(`Posicion muy grande: ${valorPosicion.toFixed(2)} USDT > max ${maxPosicion.toFixed(2)} USDT`);
+            }
+
+            const clampedQty = parseFloat((maxPosicion / currentPrice).toFixed(4));
+            if (!Number.isFinite(clampedQty) || clampedQty <= 0) {
+                throw new Error(`No se pudo ajustar quantity al maximo permitido (${maxPosicion.toFixed(2)} USDT).`);
+            }
+
+            logger.warn(
+                `[${user?.nombre || 'Global'}] Posicion ajustada por limite de exposicion: ${valorPosicion.toFixed(2)} -> ${maxPosicion.toFixed(2)} USDT | Qty ${quantity} -> ${clampedQty}`
+            );
+            quantity = clampedQty;
         }
 
         const symbol = process.env.PAR || 'BTC-USDT';
